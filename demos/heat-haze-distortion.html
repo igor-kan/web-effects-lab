@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Heat Haze Distortion</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0f120f;
+        color: #f3f6ee;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(26, 29, 22, 0.64);
+        border: 1px solid rgba(218, 232, 176, 0.25);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.36; }
+      .home { color: #c9df97; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Heat Haze Distortion</h1>
+      <p>
+        Refractive heat shimmer over a textured scene with rising turbulence and local thermal distortions.
+      </p>
+      <p>Move pointer to reposition heat source, click burst shimmer, <strong>W</strong> wind mode, <strong>P</strong> pause.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const W = 320;
+      const H = 190;
+      const low = document.createElement('canvas');
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext('2d', { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let paused = false;
+      let burst = 0;
+      let windMode = 1;
+
+      const pointer = { x: 0.5, y: 0.74, tx: 0.5, ty: 0.74 };
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function wind() {
+        if (windMode === 0) return -0.1;
+        if (windMode === 1) return 0;
+        return 0.1;
+      }
+
+      function baseScene(x, y, t) {
+        const horizon = 0.42;
+        if (y < horizon) {
+          const k = y / horizon;
+          return [
+            26 + k * 30 + Math.sin(x * 14 + t * 0.4) * 5,
+            42 + k * 65,
+            58 + k * 110,
+          ];
+        }
+        const gy = (y - horizon) / (1 - horizon);
+        const stripe = Math.sin((x * 42 + y * 10) + Math.sin(t * 0.3) * 2) * 0.5 + 0.5;
+        return [
+          64 + gy * 58 + stripe * 15,
+          72 + gy * 70 + stripe * 12,
+          48 + gy * 34,
+        ];
+      }
+
+      function drawFrame() {
+        const px = image.data;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.1;
+        pointer.y += (pointer.ty - pointer.y) * 0.1;
+        burst = Math.max(0, burst - 0.01);
+
+        const w = wind();
+
+        for (let iy = 0; iy < H; iy += 1) {
+          for (let ix = 0; ix < W; ix += 1) {
+            const i = (ix + iy * W) * 4;
+
+            const x = ix / W;
+            const y = iy / H;
+
+            const dx = x - pointer.x;
+            const dy = y - pointer.y;
+            const d = Math.sqrt(dx * dx + dy * dy) + 1e-4;
+
+            const column = Math.exp(-Math.abs(dx) * 9) * Math.exp(-Math.max(0, pointer.y - y) * 4.8);
+            const plume = Math.exp(-d * 10) * (0.6 + burst * 0.8);
+
+            const turbulence =
+              Math.sin((y * 38 + time * 5.3) + Math.cos(x * 25 - time * 3.1) * 1.7) * 0.5 +
+              Math.cos((x * 41 - time * 4.8) + Math.sin(y * 31 + time * 2.7) * 1.5) * 0.5;
+
+            const distortion = (column * 0.018 + plume * 0.03) * turbulence;
+
+            let sx = x + distortion + w * (1 - y) * 0.12;
+            let sy = y + distortion * 0.7;
+
+            sx = clamp(sx, 0, 1);
+            sy = clamp(sy, 0, 1);
+
+            const [r, g, b] = baseScene(sx, sy, time);
+
+            const glow = (column * 0.32 + plume * 0.45) * (Math.sin(time * 7 + y * 20) * 0.5 + 0.5);
+
+            px[i] = clamp(r + glow * 70, 0, 255);
+            px[i + 1] = clamp(g + glow * 45, 0, 255);
+            px[i + 2] = clamp(b + glow * 18, 0, 255);
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      function frame() {
+        if (!paused) time += 0.016;
+        drawFrame();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX / width;
+        pointer.ty = event.clientY / height;
+      });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX / width;
+        pointer.ty = t.clientY / height;
+      }, { passive: true });
+
+      addEventListener('click', () => {
+        burst = Math.min(1.4, burst + 0.45);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'p') paused = !paused;
+        if (k === 'w') windMode = (windMode + 1) % 3;
+      });
+
+      addEventListener('resize', resize);
+
+      resize();
+      frame();
+    </script>
+  </body>
+</html>

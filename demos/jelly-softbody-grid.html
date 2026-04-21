@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jelly Softbody Grid</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0e1218;
+        color: #e9f5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 7;
+        max-width: 540px;
+        background: rgba(9, 14, 24, 0.62);
+        border: 1px solid rgba(165, 214, 255, 0.28);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+        opacity: 0.92;
+      }
+
+      .home {
+        color: #9fd4ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Jelly Softbody Grid</h1>
+      <p>Mass-spring jelly sheet with elastic damping, shockwaves, and pointer grabbing.</p>
+      <p>
+        Drag to grab points, click for impulse wave, <strong>G</strong> toggles gravity,
+        <strong>P</strong> pause, <strong>R</strong> reset.
+      </p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const COLS = 26;
+      const ROWS = 18;
+      const POINTS = [];
+      const SPRINGS = [];
+
+      const pointer = {
+        x: width * 0.5,
+        y: height * 0.5,
+        down: false,
+        grabbed: -1,
+      };
+
+      let gravityOn = true;
+      let paused = false;
+      let pulse = 0;
+      let time = 0;
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function addSpring(a, b, stiffness = 0.2, damping = 0.12) {
+        const dx = POINTS[a].x - POINTS[b].x;
+        const dy = POINTS[a].y - POINTS[b].y;
+        SPRINGS.push({ a, b, rest: Math.hypot(dx, dy), stiffness, damping });
+      }
+
+      function index(x, y) {
+        return x + y * COLS;
+      }
+
+      function buildGrid() {
+        POINTS.length = 0;
+        SPRINGS.length = 0;
+
+        const spanX = Math.min(width * 0.62, 760);
+        const spanY = Math.min(height * 0.54, 520);
+        const startX = (width - spanX) * 0.5;
+        const startY = (height - spanY) * 0.28;
+
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            const fx = x / (COLS - 1);
+            const fy = y / (ROWS - 1);
+
+            const px = startX + fx * spanX;
+            const py = startY + fy * spanY;
+
+            POINTS.push({
+              x: px,
+              y: py,
+              vx: 0,
+              vy: 0,
+              mass: 0.7 + Math.random() * 0.5,
+              hue: 180 + fx * 80 + fy * 45,
+            });
+          }
+        }
+
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            const i = index(x, y);
+            if (x < COLS - 1) addSpring(i, index(x + 1, y), 0.22, 0.14);
+            if (y < ROWS - 1) addSpring(i, index(x, y + 1), 0.22, 0.14);
+            if (x < COLS - 1 && y < ROWS - 1) addSpring(i, index(x + 1, y + 1), 0.1, 0.08);
+            if (x > 0 && y < ROWS - 1) addSpring(i, index(x - 1, y + 1), 0.1, 0.08);
+            if (x < COLS - 2) addSpring(i, index(x + 2, y), 0.08, 0.05);
+            if (y < ROWS - 2) addSpring(i, index(x, y + 2), 0.08, 0.05);
+          }
+        }
+      }
+
+      function applySprings(dt) {
+        for (const spring of SPRINGS) {
+          const a = POINTS[spring.a];
+          const b = POINTS[spring.b];
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy) || 0.0001;
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          const stretch = dist - spring.rest;
+          const rvx = b.vx - a.vx;
+          const rvy = b.vy - a.vy;
+          const relative = rvx * nx + rvy * ny;
+
+          const force = stretch * spring.stiffness + relative * spring.damping;
+
+          const fx = nx * force;
+          const fy = ny * force;
+
+          a.vx += (fx / a.mass) * dt;
+          a.vy += (fy / a.mass) * dt;
+          b.vx -= (fx / b.mass) * dt;
+          b.vy -= (fy / b.mass) * dt;
+        }
+      }
+
+      function nearestPoint(px, py) {
+        let best = -1;
+        let bestDist = Infinity;
+        for (let i = 0; i < POINTS.length; i += 1) {
+          const p = POINTS[i];
+          const d = (p.x - px) * (p.x - px) + (p.y - py) * (p.y - py);
+          if (d < bestDist) {
+            bestDist = d;
+            best = i;
+          }
+        }
+        return bestDist < 1700 ? best : -1;
+      }
+
+      function injectPulse(px, py, power = 300) {
+        for (const p of POINTS) {
+          const dx = p.x - px;
+          const dy = p.y - py;
+          const d = Math.hypot(dx, dy) + 1;
+          const f = Math.exp(-d * 0.015) * power;
+          p.vx += (dx / d) * f * 0.01;
+          p.vy += (dy / d) * f * 0.01;
+        }
+        pulse = Math.min(1.5, pulse + 0.9);
+      }
+
+      function update(dt) {
+        time += dt;
+        pulse = Math.max(0, pulse - dt * 1.2);
+
+        if (pointer.down && pointer.grabbed >= 0) {
+          const p = POINTS[pointer.grabbed];
+          p.x += (pointer.x - p.x) * 0.28;
+          p.y += (pointer.y - p.y) * 0.28;
+          p.vx *= 0.75;
+          p.vy *= 0.75;
+        }
+
+        applySprings(dt);
+
+        for (const p of POINTS) {
+          if (gravityOn) p.vy += 200 * dt;
+
+          const dx = p.x - pointer.x;
+          const dy = p.y - pointer.y;
+          const d = Math.hypot(dx, dy) + 1;
+          const swirl = 1 / d;
+          p.vx += (-dy * swirl) * 12 * dt;
+          p.vy += (dx * swirl) * 12 * dt;
+
+          p.vx *= 0.986;
+          p.vy *= 0.986;
+
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+
+          const margin = 10;
+          if (p.x < margin) {
+            p.x = margin;
+            p.vx *= -0.45;
+          } else if (p.x > width - margin) {
+            p.x = width - margin;
+            p.vx *= -0.45;
+          }
+
+          if (p.y < margin) {
+            p.y = margin;
+            p.vy *= -0.45;
+          } else if (p.y > height - margin) {
+            p.y = height - margin;
+            p.vy *= -0.45;
+          }
+        }
+      }
+
+      function drawBackground() {
+        const g = ctx.createLinearGradient(0, 0, 0, height);
+        g.addColorStop(0, "#0d1522");
+        g.addColorStop(1, "#121b2b");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      function drawMesh() {
+        ctx.lineWidth = 1.1;
+        for (const s of SPRINGS) {
+          const a = POINTS[s.a];
+          const b = POINTS[s.b];
+          const stretch = Math.abs(Math.hypot(b.x - a.x, b.y - a.y) - s.rest) / s.rest;
+          const alpha = clamp(0.08 + stretch * 0.9 + pulse * 0.2, 0.05, 0.95);
+          ctx.strokeStyle = `hsla(${190 + stretch * 130}, 86%, 68%, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+
+        for (let y = 0; y < ROWS - 1; y += 1) {
+          for (let x = 0; x < COLS - 1; x += 1) {
+            const p1 = POINTS[index(x, y)];
+            const p2 = POINTS[index(x + 1, y)];
+            const p3 = POINTS[index(x + 1, y + 1)];
+            const p4 = POINTS[index(x, y + 1)];
+
+            const hue = (p1.hue + p3.hue) * 0.5 + Math.sin(time * 2 + x * 0.2 + y * 0.15) * 22;
+            ctx.fillStyle = `hsla(${hue}, 76%, 58%, 0.1)`;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+
+        for (const p of POINTS) {
+          const speed = Math.hypot(p.vx, p.vy);
+          const size = 1.3 + Math.min(2.8, speed * 0.03) + pulse * 0.6;
+          ctx.fillStyle = `hsla(${p.hue + Math.sin(time * 2.5) * 18}, 88%, 74%, 0.9)`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      let prev = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, (now - prev) * 0.001);
+        prev = now;
+
+        if (!paused) update(dt);
+        drawBackground();
+        drawMesh();
+
+        requestAnimationFrame(frame);
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        buildGrid();
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.x = clientX;
+        pointer.y = clientY;
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+      window.addEventListener("mousedown", (event) => {
+        setPointer(event.clientX, event.clientY);
+        pointer.down = true;
+        pointer.grabbed = nearestPoint(pointer.x, pointer.y);
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+        pointer.grabbed = -1;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+          pointer.down = true;
+          pointer.grabbed = nearestPoint(pointer.x, pointer.y);
+        },
+        { passive: true }
+      );
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+        pointer.grabbed = -1;
+      });
+
+      window.addEventListener("click", (event) => {
+        injectPulse(event.clientX, event.clientY, 320);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") buildGrid();
+        if (key === "p") paused = !paused;
+        if (key === "g") gravityOn = !gravityOn;
+      });
+
+      resize();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

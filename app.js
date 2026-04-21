@@ -637,6 +637,66 @@ const demos = [
     tags: ["3D", "environment", "bioluminescent", "interactive"],
     file: "demos/bioluminescent-reef-3d.html",
   },
+  {
+    id: "heat-haze-distortion",
+    title: "Heat Haze Distortion",
+    stack: "2D Refraction Simulation",
+    level: "Advanced",
+    description:
+      "Thermal shimmer distortion over a procedural scene with rising turbulence and localized heat columns.",
+    interaction: "Move pointer to position heat source, click burst shimmer, W changes wind, and P pauses.",
+    tags: ["2D", "distortion", "heat", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wind Mode (W)",
+    file: "demos/heat-haze-distortion.html",
+  },
+  {
+    id: "ink-diffusion-paper",
+    title: "Ink Diffusion Paper",
+    stack: "Pigment Diffusion Solver",
+    level: "Advanced",
+    description:
+      "Ink-on-paper simulation with wetness-dependent diffusion, capillary bleed, and textured absorption.",
+    interaction: "Click/drag to paint ink, C cycles palette, W changes wetness mode, and R resets.",
+    tags: ["2D", "ink", "simulation", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wetness Mode (W)",
+    file: "demos/ink-diffusion-paper.html",
+  },
+  {
+    id: "raymarched-crystal-cavern",
+    title: "Raymarched Crystal Cavern",
+    stack: "WebGL Raymarching",
+    level: "Advanced",
+    description:
+      "Signed-distance crystal cavern flythrough with reflective shards, volumetric fog, and pulse flares.",
+    interaction: "Move pointer to steer, click pulse flare, Q cycles speed, and Space pauses travel.",
+    tags: ["3D", "shader", "raymarch", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (Q)",
+    file: "demos/raymarched-crystal-cavern.html",
+  },
+  {
+    id: "jelly-softbody-grid",
+    title: "Jelly Softbody Grid",
+    stack: "Mass-Spring Physics",
+    level: "Advanced",
+    description:
+      "Elastic jelly sheet simulation with spring damping, pointer grabbing, and impulse shockwave propagation.",
+    interaction: "Drag to grab points, click impulse wave, G toggles gravity, P pauses, and R resets.",
+    tags: ["2D", "physics", "simulation", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Gravity Toggle (G)",
+    file: "demos/jelly-softbody-grid.html",
+  },
+  {
+    id: "volumetric-cloud-chamber-3d",
+    title: "Volumetric Cloud Chamber 3D",
+    stack: "Three.js Point Cloud",
+    level: "Advanced",
+    description:
+      "Dense volumetric-style cloud chamber with animated point fog, light shafts, and orbital camera motion.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse burst, A toggles auto-spin, C palette, and R reseeds.",
+    tags: ["3D", "clouds", "volumetric", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/volumetric-cloud-chamber-3d.html",
+  },
 ];
 
 const state = {

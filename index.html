@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Effects Lab</title>
+    <meta
+      name="description"
+      content="Downloadable interactive 2D and 3D web effect demos: smoke, fluid-style simulation, lighting, lightning, particles, and procedural environments."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true">
+      <span class="orb orb-one"></span>
+      <span class="orb orb-two"></span>
+      <span class="orb orb-three"></span>
+    </div>
+
+    <main class="site-shell">
+      <header class="hero">
+        <p class="eyebrow">Interactive Effect Playground</p>
+        <h1>Web Effects Lab</h1>
+        <p class="lead">
+          A curated set of downloadable, standalone demos for expressive website visuals:
+          smoke, fluid-like motion, lightning, dynamic lighting, particle systems,
+          and 3D scenes.
+        </p>
+        <div class="hero-meta">
+          <span id="demoCount" class="count-pill"></span>
+          <a class="btn secondary" href="#demoGrid">Browse Demos</a>
+          <a class="btn" href="README.md">Read Setup</a>
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="Demo filters">
+        <div class="search-wrap">
+          <label for="searchInput">Find demos</label>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Try: fluid, lightning, environment, particles..."
+            autocomplete="off"
+          />
+        </div>
+        <div id="tagFilters" class="tag-filters" role="group" aria-label="Filter by tag"></div>
+        <button id="clearFilters" class="chip clear" type="button">Clear Filters</button>
+      </section>
+
+      <section id="demoGrid" class="demo-grid" aria-live="polite"></section>
+
+      <template id="demoCardTemplate">
+        <article class="demo-card">
+          <div class="card-topline">
+            <p class="stack"></p>
+            <p class="level"></p>
+          </div>
+          <h2 class="title"></h2>
+          <p class="description"></p>
+          <p class="interaction"></p>
+          <div class="tags"></div>
+          <div class="card-actions">
+            <a class="btn open" target="_blank" rel="noopener noreferrer">Open Demo</a>
+            <button class="btn download" type="button">Download HTML</button>
+          </div>
+        </article>
+      </template>
+
+      <footer class="footer">
+        <p>
+          Built for fast experimentation. Every demo lives in
+          <code>/demos</code> as a standalone file.
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lightning Storm</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #020713;
+        font-family: Verdana, sans-serif;
+        color: #e6f3ff;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(2, 12, 28, 0.58);
+        border: 1px solid rgba(126, 197, 255, 0.35);
+        backdrop-filter: blur(8px);
+        max-width: 370px;
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .home {
+        color: #89d2ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Lightning Storm</h1>
+      <p>Click anywhere to trigger a strike. Ambient lightning keeps firing in the background.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      const bolts = [];
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let nextAmbientStrike = 0;
+      let flash = 0;
+      let t = 0;
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function buildBolt(x1, y1, x2, y2, detail = 6, jitter = 120) {
+        let points = [
+          { x: x1, y: y1 },
+          { x: x2, y: y2 },
+        ];
+
+        for (let d = 0; d < detail; d += 1) {
+          const next = [];
+
+          for (let i = 0; i < points.length - 1; i += 1) {
+            const a = points[i];
+            const b = points[i + 1];
+
+            next.push(a);
+
+            const mx = (a.x + b.x) * 0.5;
+            const my = (a.y + b.y) * 0.5;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const nx = -dy / len;
+            const ny = dx / len;
+            const offset = (Math.random() * 2 - 1) * jitter;
+
+            next.push({
+              x: mx + nx * offset,
+              y: my + ny * offset,
+            });
+          }
+
+          next.push(points[points.length - 1]);
+          points = next;
+          jitter *= 0.54;
+        }
+
+        return points;
+      }
+
+      function createStrike(targetX, targetY, fromX = targetX + (Math.random() * 260 - 130)) {
+        const startX = Math.max(0, Math.min(width, fromX));
+        const startY = -20;
+        const main = buildBolt(startX, startY, targetX, targetY, 6, 110);
+
+        const branches = [];
+        for (let i = 3; i < main.length - 4; i += 1) {
+          if (Math.random() < 0.1) {
+            const p = main[i];
+            const branchTargetX = p.x + (Math.random() * 220 - 110);
+            const branchTargetY = p.y + Math.random() * 180;
+            branches.push(buildBolt(p.x, p.y, branchTargetX, branchTargetY, 4, 60));
+          }
+        }
+
+        bolts.push({
+          main,
+          branches,
+          life: 1,
+          decay: 0.026 + Math.random() * 0.02,
+        });
+
+        flash = Math.min(1, flash + 0.6);
+      }
+
+      function drawCloudLayer() {
+        const topGradient = ctx.createLinearGradient(0, 0, 0, height * 0.45);
+        topGradient.addColorStop(0, "rgba(18, 34, 62, 0.88)");
+        topGradient.addColorStop(1, "rgba(3, 7, 15, 0)");
+        ctx.fillStyle = topGradient;
+        ctx.fillRect(0, 0, width, height * 0.45);
+
+        for (let i = 0; i < 12; i += 1) {
+          const x = (width / 12) * i + Math.sin(t * 0.001 + i) * 28;
+          const y = 40 + Math.cos(t * 0.0012 + i * 0.7) * 14;
+          const r = 70 + (i % 4) * 24;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, "rgba(100, 140, 180, 0.22)");
+          g.addColorStop(1, "rgba(100, 140, 180, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function drawBolt(points, alpha, widthMultiplier) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i += 1) {
+          const p = points[i];
+          ctx.lineTo(p.x, p.y);
+        }
+
+        ctx.strokeStyle = `rgba(175, 226, 255, ${alpha})`;
+        ctx.lineWidth = 2.2 * widthMultiplier;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = "rgba(164, 224, 255, 0.95)";
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(1, alpha * 1.3)})`;
+        ctx.lineWidth = 0.95 * widthMultiplier;
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+      }
+
+      function drawBolts() {
+        for (let i = bolts.length - 1; i >= 0; i -= 1) {
+          const bolt = bolts[i];
+          const alpha = bolt.life;
+
+          drawBolt(bolt.main, alpha, 1.6);
+          bolt.branches.forEach((branch) => drawBolt(branch, alpha * 0.62, 1));
+
+          bolt.life -= bolt.decay;
+          if (bolt.life <= 0) {
+            bolts.splice(i, 1);
+          }
+        }
+      }
+
+      function animate(time) {
+        t = time;
+
+        ctx.fillStyle = "rgba(2, 7, 14, 0.22)";
+        ctx.fillRect(0, 0, width, height);
+
+        drawCloudLayer();
+        drawBolts();
+
+        if (time > nextAmbientStrike) {
+          const targetX = Math.random() * width;
+          const targetY = height * (0.45 + Math.random() * 0.45);
+          createStrike(targetX, targetY, targetX + (Math.random() * 280 - 140));
+          nextAmbientStrike = time + 520 + Math.random() * 1200;
+        }
+
+        if (flash > 0.01) {
+          const glow = Math.min(0.5, flash * 0.5);
+          ctx.fillStyle = `rgba(200, 230, 255, ${glow})`;
+          ctx.fillRect(0, 0, width, height);
+          flash *= 0.86;
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("click", (event) => {
+        createStrike(event.clientX, event.clientY, event.clientX + (Math.random() * 180 - 90));
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const touch = event.touches[0];
+          createStrike(touch.clientX, touch.clientY, touch.clientX);
+        },
+        { passive: true }
+      );
+
+      resize();
+      ctx.fillStyle = "#020713";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neon Light Grid</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060915;
+        font-family: "Segoe UI", sans-serif;
+        color: #e8f6ff;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 14px;
+        top: 14px;
+        padding: 9px 11px;
+        border-radius: 10px;
+        background: rgba(6, 14, 28, 0.54);
+        border: 1px solid rgba(152, 229, 255, 0.3);
+        max-width: 360px;
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .home {
+        color: #9be1ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Neon Light Grid</h1>
+      <p>Move your pointer to add a live light source over an animated neon grid.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      const spacing = 46;
+      const pointer = { x: width * 0.5, y: height * 0.5, active: false };
+      let t = 0;
+
+      const lights = [
+        { x: width * 0.2, y: height * 0.3, vx: 0.45, vy: 0.34, radius: 230, hue: 186 },
+        { x: width * 0.8, y: height * 0.4, vx: -0.38, vy: 0.3, radius: 210, hue: 38 },
+        { x: width * 0.46, y: height * 0.75, vx: 0.34, vy: -0.36, radius: 240, hue: 332 },
+      ];
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, "#0b1024");
+        gradient.addColorStop(1, "#05070f");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      function drawGrid() {
+        ctx.save();
+        ctx.strokeStyle = "rgba(80, 145, 188, 0.24)";
+        ctx.lineWidth = 1;
+
+        const offsetX = Math.sin(t * 0.00045) * spacing;
+        const offsetY = Math.cos(t * 0.0004) * spacing;
+
+        for (let x = -spacing; x < width + spacing; x += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(x + offsetX, 0);
+          ctx.lineTo(x + offsetX + Math.sin(t * 0.001 + x * 0.005) * 8, height);
+          ctx.stroke();
+        }
+
+        for (let y = -spacing; y < height + spacing; y += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + offsetY);
+          ctx.lineTo(width, y + offsetY + Math.cos(t * 0.0012 + y * 0.004) * 8);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawGlow(x, y, radius, hue, alpha = 0.36) {
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        gradient.addColorStop(0, `hsla(${hue}, 95%, 68%, ${alpha})`);
+        gradient.addColorStop(0.4, `hsla(${hue}, 88%, 52%, ${alpha * 0.48})`);
+        gradient.addColorStop(1, `hsla(${hue}, 90%, 40%, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function updateLights() {
+        for (const light of lights) {
+          light.x += light.vx;
+          light.y += light.vy;
+
+          if (light.x < 0 || light.x > width) light.vx *= -1;
+          if (light.y < 0 || light.y > height) light.vy *= -1;
+        }
+      }
+
+      function drawConnections() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        for (let i = 0; i < lights.length; i += 1) {
+          for (let j = i + 1; j < lights.length; j += 1) {
+            const a = lights[i];
+            const b = lights[j];
+            const dist = Math.hypot(a.x - b.x, a.y - b.y);
+            if (dist > 460) continue;
+
+            ctx.strokeStyle = `hsla(${(a.hue + b.hue) * 0.5}, 90%, 65%, ${0.28 - dist / 1900})`;
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      }
+
+      function tick(time) {
+        t = time;
+        drawBackground();
+        drawGrid();
+
+        updateLights();
+
+        ctx.globalCompositeOperation = "lighter";
+        for (const light of lights) {
+          drawGlow(light.x, light.y, light.radius, light.hue);
+        }
+
+        if (pointer.active) {
+          drawGlow(pointer.x, pointer.y, 250, 195, 0.42);
+        }
+
+        drawConnections();
+        ctx.globalCompositeOperation = "source-over";
+
+        requestAnimationFrame(tick);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousemove", (event) => {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        pointer.active = true;
+      });
+      window.addEventListener("mouseleave", () => {
+        pointer.active = false;
+      });
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          pointer.x = t.clientX;
+          pointer.y = t.clientY;
+          pointer.active = true;
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchend", () => {
+        pointer.active = false;
+      });
+
+      resize();
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>

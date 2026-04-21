@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forest Flight</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #dff1ff;
+        font-family: "Verdana", sans-serif;
+      }
+
+      #stage {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 420px;
+        background: rgba(249, 254, 255, 0.84);
+        border: 1px solid rgba(48, 87, 109, 0.2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+        color: #1a3d52;
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .home {
+        color: #0f6f8c;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Forest Flight</h1>
+      <p>Hold left mouse and drag to look. Use <strong>WASD</strong> to move, <strong>Shift</strong> for boost.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+
+      const canvas = document.getElementById("stage");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xcde9ff);
+      scene.fog = new THREE.Fog(0xcde9ff, 45, 155);
+
+      const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 450);
+      camera.position.set(0, 9, 24);
+
+      const hemi = new THREE.HemisphereLight(0xf2fbff, 0x6a876f, 0.95);
+      scene.add(hemi);
+
+      const sun = new THREE.DirectionalLight(0xfff0cf, 1.15);
+      sun.position.set(22, 35, 16);
+      scene.add(sun);
+
+      const sunGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(1.6, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0xffd06d })
+      );
+      scene.add(sunGlow);
+
+      function heightAt(x, z) {
+        return (
+          Math.sin(x * 0.065) * 2.8 +
+          Math.cos(z * 0.06) * 2.4 +
+          Math.sin((x + z) * 0.028) * 3 +
+          Math.cos((x - z) * 0.041) * 1.7
+        );
+      }
+
+      const terrainGeo = new THREE.PlaneGeometry(240, 240, 170, 170);
+      terrainGeo.rotateX(-Math.PI * 0.5);
+
+      const pos = terrainGeo.attributes.position;
+      for (let i = 0; i < pos.count; i += 1) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        pos.setY(i, heightAt(x, z));
+      }
+      pos.needsUpdate = true;
+      terrainGeo.computeVertexNormals();
+
+      const terrainMat = new THREE.MeshStandardMaterial({
+        color: 0x75a56a,
+        roughness: 0.95,
+        metalness: 0.02,
+        flatShading: false,
+      });
+
+      const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+      scene.add(terrain);
+
+      const treeCount = 700;
+      const trunkGeo = new THREE.CylinderGeometry(0.16, 0.22, 1, 6);
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6e4f35, roughness: 0.93 });
+      const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
+
+      const canopyGeo = new THREE.ConeGeometry(0.85, 2.4, 7);
+      const canopyMat = new THREE.MeshStandardMaterial({ color: 0x2f7f41, roughness: 0.9 });
+      const canopies = new THREE.InstancedMesh(canopyGeo, canopyMat, treeCount);
+
+      const dummy = new THREE.Object3D();
+      for (let i = 0; i < treeCount; i += 1) {
+        const x = (Math.random() - 0.5) * 228;
+        const z = (Math.random() - 0.5) * 228;
+        const y = heightAt(x, z);
+        const s = 0.8 + Math.random() * 1.35;
+
+        dummy.position.set(x, y + s * 0.52, z);
+        dummy.scale.set(s * 0.8, s * 1.7, s * 0.8);
+        dummy.rotation.y = Math.random() * Math.PI;
+        dummy.updateMatrix();
+        trunks.setMatrixAt(i, dummy.matrix);
+
+        dummy.position.set(x, y + s * 1.85, z);
+        dummy.scale.set(s, s, s);
+        dummy.rotation.y = Math.random() * Math.PI;
+        dummy.updateMatrix();
+        canopies.setMatrixAt(i, dummy.matrix);
+      }
+
+      scene.add(trunks);
+      scene.add(canopies);
+
+      const cloudGeo = new THREE.SphereGeometry(2.6, 20, 20);
+      const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+      const clouds = [];
+
+      for (let i = 0; i < 22; i += 1) {
+        const cloud = new THREE.Mesh(cloudGeo, cloudMat.clone());
+        cloud.position.set((Math.random() - 0.5) * 210, 26 + Math.random() * 16, (Math.random() - 0.5) * 210);
+        cloud.scale.setScalar(0.6 + Math.random() * 1.8);
+        cloud.userData.speed = 0.012 + Math.random() * 0.02;
+        clouds.push(cloud);
+        scene.add(cloud);
+      }
+
+      const keys = new Set();
+      let yaw = 0;
+      let pitch = -0.12;
+      let mouseDrag = false;
+      let prevMouseX = 0;
+      let prevMouseY = 0;
+
+      const velocity = new THREE.Vector3();
+      const forward = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3(0, 1, 0);
+
+      function applyLook() {
+        const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+        camera.quaternion.copy(quat);
+      }
+
+      function updateMovement(delta) {
+        const speed = keys.has("ShiftLeft") || keys.has("ShiftRight") ? 26 : 14;
+        const target = new THREE.Vector3();
+
+        if (keys.has("KeyW")) target.z -= 1;
+        if (keys.has("KeyS")) target.z += 1;
+        if (keys.has("KeyA")) target.x -= 1;
+        if (keys.has("KeyD")) target.x += 1;
+
+        if (target.lengthSq() === 0) {
+          target.z = -0.35;
+        }
+
+        target.normalize();
+
+        forward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+        forward.y = 0;
+        forward.normalize();
+
+        right.crossVectors(forward, up).normalize();
+
+        const move = new THREE.Vector3();
+        move.addScaledVector(forward, -target.z);
+        move.addScaledVector(right, target.x);
+        move.normalize();
+
+        velocity.lerp(move.multiplyScalar(speed), 0.08);
+
+        camera.position.addScaledVector(velocity, delta);
+
+        camera.position.x = Math.max(-116, Math.min(116, camera.position.x));
+        camera.position.z = Math.max(-116, Math.min(116, camera.position.z));
+
+        const floorHeight = heightAt(camera.position.x, camera.position.z) + 3.6;
+        camera.position.y = Math.max(floorHeight, camera.position.y + Math.sin(performance.now() * 0.002) * 0.02);
+      }
+
+      let prevTime = performance.now();
+      function animate(now) {
+        const delta = Math.min(0.04, (now - prevTime) / 1000);
+        prevTime = now;
+
+        const sunAngle = now * 0.000045;
+        sun.position.set(Math.cos(sunAngle) * 55, 35 + Math.sin(sunAngle) * 10, Math.sin(sunAngle) * 55);
+        sunGlow.position.copy(sun.position);
+
+        for (const cloud of clouds) {
+          cloud.position.x += cloud.userData.speed;
+          if (cloud.position.x > 120) cloud.position.x = -120;
+        }
+
+        updateMovement(delta);
+        applyLook();
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("keydown", (event) => keys.add(event.code));
+      window.addEventListener("keyup", (event) => keys.delete(event.code));
+
+      window.addEventListener("mousedown", (event) => {
+        mouseDrag = true;
+        prevMouseX = event.clientX;
+        prevMouseY = event.clientY;
+      });
+
+      window.addEventListener("mouseup", () => {
+        mouseDrag = false;
+      });
+
+      window.addEventListener("mousemove", (event) => {
+        if (!mouseDrag) return;
+
+        const dx = event.clientX - prevMouseX;
+        const dy = event.clientY - prevMouseY;
+        prevMouseX = event.clientX;
+        prevMouseY = event.clientY;
+
+        yaw -= dx * 0.0042;
+        pitch -= dy * 0.0036;
+        pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          mouseDrag = true;
+          prevMouseX = t.clientX;
+          prevMouseY = t.clientY;
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          if (!mouseDrag) return;
+          const t = event.touches[0];
+          const dx = t.clientX - prevMouseX;
+          const dy = t.clientY - prevMouseY;
+          prevMouseX = t.clientX;
+          prevMouseY = t.clientY;
+          yaw -= dx * 0.0042;
+          pitch -= dy * 0.0036;
+          pitch = Math.max(-1.2, Math.min(1.2, pitch));
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchend", () => {
+        mouseDrag = false;
+      });
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      applyLook();
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orbital Model Lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #eff8ff;
+        font-family: "Lucida Sans", sans-serif;
+      }
+
+      #stage {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 390px;
+        background: rgba(248, 253, 255, 0.82);
+        border: 1px solid rgba(42, 76, 96, 0.2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+        color: #1b3649;
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .home {
+        color: #0d6f8f;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Orbital Model Lab</h1>
+      <p>Drag to orbit, scroll to zoom, press <strong>R</strong> to toggle ring pulse.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+      import { OrbitControls } from "https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js";
+
+      const canvas = document.getElementById("stage");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xeaf7ff);
+      scene.fog = new THREE.Fog(0xeaf7ff, 9, 26);
+
+      const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 120);
+      camera.position.set(5.5, 3.7, 8.2);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.enablePan = false;
+      controls.minDistance = 4;
+      controls.maxDistance = 16;
+      controls.target.set(0, 1.4, 0);
+
+      const hemi = new THREE.HemisphereLight(0xf6fbff, 0xa4c0d0, 0.9);
+      scene.add(hemi);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      keyLight.position.set(5, 9, 5);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.PointLight(0x79d5ff, 2.6, 20, 2);
+      fillLight.position.set(-4, 3, 1);
+      scene.add(fillLight);
+
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(9, 64),
+        new THREE.MeshStandardMaterial({ color: 0xcce8f5, roughness: 0.82, metalness: 0.05 })
+      );
+      floor.rotation.x = -Math.PI * 0.5;
+      floor.position.y = -0.02;
+      scene.add(floor);
+
+      const shadowRing = new THREE.Mesh(
+        new THREE.RingGeometry(1.6, 3.5, 70),
+        new THREE.MeshBasicMaterial({ color: 0x6f9eb7, transparent: true, opacity: 0.16, side: THREE.DoubleSide })
+      );
+      shadowRing.rotation.x = -Math.PI * 0.5;
+      shadowRing.position.y = 0.01;
+      scene.add(shadowRing);
+
+      const model = new THREE.Group();
+      scene.add(model);
+
+      const body = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(1.05, 1),
+        new THREE.MeshStandardMaterial({ color: 0x0f3b57, roughness: 0.24, metalness: 0.7 })
+      );
+      body.position.y = 1.5;
+      model.add(body);
+
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.43, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0x49c6ff, emissive: 0x1fa8ff, emissiveIntensity: 0.75, roughness: 0.1, metalness: 0.35 })
+      );
+      core.position.y = 1.5;
+      model.add(core);
+
+      const wingGeo = new THREE.BoxGeometry(1.45, 0.15, 0.44);
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x225a78, roughness: 0.32, metalness: 0.65 });
+
+      for (let i = 0; i < 4; i += 1) {
+        const wing = new THREE.Mesh(wingGeo, wingMat);
+        wing.position.y = 1.5;
+        wing.rotation.y = (Math.PI * 0.5 * i) + Math.PI * 0.25;
+        wing.position.x = Math.cos(wing.rotation.y) * 1.2;
+        wing.position.z = Math.sin(wing.rotation.y) * 1.2;
+        model.add(wing);
+      }
+
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0x21d8c0,
+        emissive: 0x18aa95,
+        emissiveIntensity: 0.8,
+        roughness: 0.2,
+        metalness: 0.8,
+      });
+
+      const ringA = new THREE.Mesh(new THREE.TorusGeometry(2.05, 0.06, 20, 180), ringMat);
+      ringA.position.y = 1.5;
+      ringA.rotation.x = Math.PI * 0.2;
+      model.add(ringA);
+
+      const ringB = ringA.clone();
+      ringB.rotation.set(Math.PI * 0.72, 0, Math.PI * 0.24);
+      model.add(ringB);
+
+      const ringC = ringA.clone();
+      ringC.rotation.set(Math.PI * 0.36, Math.PI * 0.15, Math.PI * 0.5);
+      model.add(ringC);
+
+      const floaters = [];
+      const floaterGeo = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+      const floaterMat = new THREE.MeshStandardMaterial({ color: 0xff8d42, roughness: 0.16, metalness: 0.56, emissive: 0x7a300b, emissiveIntensity: 0.5 });
+
+      for (let i = 0; i < 22; i += 1) {
+        const cube = new THREE.Mesh(floaterGeo, floaterMat);
+        const r = 2.6 + Math.random() * 1.4;
+        const a = Math.random() * Math.PI * 2;
+        cube.position.set(Math.cos(a) * r, 1 + (Math.random() - 0.5) * 1.8, Math.sin(a) * r);
+        cube.userData = { angle: a, radius: r, speed: 0.004 + Math.random() * 0.005, lift: Math.random() * Math.PI * 2 };
+        scene.add(cube);
+        floaters.push(cube);
+      }
+
+      let pulseEnabled = true;
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key.toLowerCase() === "r") {
+          pulseEnabled = !pulseEnabled;
+        }
+      });
+
+      function animate(time) {
+        const t = time * 0.001;
+
+        model.rotation.y = t * 0.45;
+        model.position.y = Math.sin(t * 1.4) * 0.12;
+
+        ringA.rotation.z += 0.008;
+        ringB.rotation.x += 0.0065;
+        ringC.rotation.y += 0.007;
+
+        if (pulseEnabled) {
+          const pulse = 0.9 + Math.sin(t * 3.5) * 0.12;
+          ringMat.emissiveIntensity = 0.75 + Math.sin(t * 3.5) * 0.4;
+          ringA.scale.setScalar(pulse);
+          ringB.scale.setScalar(1.08 - Math.sin(t * 2.8) * 0.08);
+          ringC.scale.setScalar(0.94 + Math.cos(t * 3.2) * 0.1);
+        } else {
+          ringMat.emissiveIntensity = 0.65;
+          ringA.scale.setScalar(1);
+          ringB.scale.setScalar(1);
+          ringC.scale.setScalar(1);
+        }
+
+        for (const cube of floaters) {
+          const data = cube.userData;
+          data.angle += data.speed;
+          cube.position.x = Math.cos(data.angle) * data.radius;
+          cube.position.z = Math.sin(data.angle) * data.radius;
+          cube.position.y = 1.3 + Math.sin(t * 2 + data.lift) * 0.6;
+          cube.rotation.x += 0.01;
+          cube.rotation.y += 0.012;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

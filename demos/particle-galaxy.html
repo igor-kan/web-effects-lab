@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Particle Galaxy</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #020610;
+        color: #e8f2ff;
+        font-family: Tahoma, sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(2, 12, 24, 0.56);
+        border: 1px solid rgba(148, 213, 255, 0.3);
+        max-width: 390px;
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.35;
+        opacity: 0.9;
+      }
+
+      .home {
+        color: #97d8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Particle Galaxy</h1>
+      <p>Drag to orbit camera and use mouse wheel to zoom.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      const particles = [];
+      const stars = [];
+
+      const camera = {
+        rotX: -0.22,
+        rotY: 0.3,
+        zoom: 620,
+      };
+
+      const pointer = {
+        down: false,
+        x: 0,
+        y: 0,
+      };
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function seed() {
+        particles.length = 0;
+        stars.length = 0;
+
+        for (let i = 0; i < 2200; i += 1) {
+          const radius = 40 + Math.pow(Math.random(), 0.72) * 470;
+          const theta = Math.random() * Math.PI * 2;
+          const yOffset = (Math.random() - 0.5) * 80;
+          const speed = 0.00035 + Math.random() * 0.0012;
+          const hue = 188 + Math.random() * 140;
+
+          particles.push({
+            radius,
+            theta,
+            yOffset,
+            speed,
+            size: 0.7 + Math.random() * 2.4,
+            hue,
+            spiral: 0.8 + Math.random() * 1.5,
+          });
+        }
+
+        for (let i = 0; i < 280; i += 1) {
+          stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            r: Math.random() * 1.4,
+            a: 0.2 + Math.random() * 0.8,
+          });
+        }
+      }
+
+      function projectPoint(x, y, z) {
+        let px = x;
+        let py = y;
+        let pz = z;
+
+        const cosY = Math.cos(camera.rotY);
+        const sinY = Math.sin(camera.rotY);
+        const x1 = px * cosY - pz * sinY;
+        const z1 = px * sinY + pz * cosY;
+
+        const cosX = Math.cos(camera.rotX);
+        const sinX = Math.sin(camera.rotX);
+        const y1 = py * cosX - z1 * sinX;
+        const z2 = py * sinX + z1 * cosX;
+
+        const depth = camera.zoom + z2 + 760;
+        if (depth <= 1) return null;
+
+        const scale = camera.zoom / depth;
+        return {
+          x: x1 * scale + width * 0.5,
+          y: y1 * scale + height * 0.5,
+          scale,
+          depth,
+        };
+      }
+
+      function drawBackground() {
+        const grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, "#040c1d");
+        grad.addColorStop(1, "#03070f");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        for (const s of stars) {
+          ctx.fillStyle = `rgba(206, 228, 255, ${s.a * (0.5 + Math.sin(performance.now() * 0.001 + s.x) * 0.18)})`;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function frame(time) {
+        drawBackground();
+
+        const drawBatch = [];
+
+        for (const p of particles) {
+          p.theta += p.speed;
+
+          const arm = Math.sin(p.theta * p.spiral) * 32;
+          const x = Math.cos(p.theta) * (p.radius + arm);
+          const z = Math.sin(p.theta) * (p.radius + arm);
+          const y = p.yOffset + Math.sin(p.theta * 3.2) * 7;
+
+          const proj = projectPoint(x, y, z);
+          if (!proj) continue;
+
+          drawBatch.push({
+            x: proj.x,
+            y: proj.y,
+            depth: proj.depth,
+            size: p.size * proj.scale,
+            hue: p.hue,
+            alpha: Math.min(1, 0.2 + proj.scale * 5.5),
+          });
+        }
+
+        drawBatch.sort((a, b) => b.depth - a.depth);
+
+        ctx.globalCompositeOperation = "lighter";
+        for (const point of drawBatch) {
+          const radius = Math.max(0.3, point.size);
+          const glow = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius * 3.5);
+          glow.addColorStop(0, `hsla(${point.hue}, 95%, 74%, ${0.55 * point.alpha})`);
+          glow.addColorStop(1, `hsla(${point.hue - 22}, 80%, 50%, 0)`);
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius * 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = `hsla(${point.hue}, 95%, 84%, ${point.alpha})`;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalCompositeOperation = "source-over";
+
+        requestAnimationFrame(frame);
+      }
+
+      function onPointerDown(x, y) {
+        pointer.down = true;
+        pointer.x = x;
+        pointer.y = y;
+      }
+
+      function onPointerMove(x, y) {
+        if (!pointer.down) return;
+
+        const dx = x - pointer.x;
+        const dy = y - pointer.y;
+        pointer.x = x;
+        pointer.y = y;
+
+        camera.rotY += dx * 0.005;
+        camera.rotX += dy * 0.004;
+        camera.rotX = Math.max(-1.2, Math.min(1.2, camera.rotX));
+      }
+
+      window.addEventListener("resize", () => {
+        resize();
+        seed();
+      });
+
+      window.addEventListener("mousedown", (event) => {
+        onPointerDown(event.clientX, event.clientY);
+      });
+      window.addEventListener("mousemove", (event) => {
+        onPointerMove(event.clientX, event.clientY);
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          onPointerDown(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          onPointerMove(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("wheel", (event) => {
+        camera.zoom += event.deltaY * -0.6;
+        camera.zoom = Math.max(260, Math.min(1100, camera.zoom));
+      });
+
+      resize();
+      seed();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

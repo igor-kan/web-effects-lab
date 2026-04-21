@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ash Plume Simulation</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #07090f;
+        color: #eff7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(10, 14, 22, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Ash Plume Simulation</h1>
+      <p>
+        Volcanic ash and soot particles with rising thermal column, lateral drift, and fallout layering.
+      </p>
+      <p>Click eruption burst, move pointer to shift vent, <strong>W</strong> wind cycle, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let prev = performance.now();
+      let time = 0;
+
+      const ash = [];
+      const smoke = [];
+
+      const MAX_ASH = 2500;
+      const MAX_SMOKE = 1200;
+
+      let burst = 0;
+      let windMode = 1;
+
+      const vent = {
+        x: width * 0.5,
+        y: height * 0.88,
+        tx: width * 0.5,
+        ty: height * 0.88,
+      };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function reset() {
+        ash.length = 0;
+        smoke.length = 0;
+      }
+
+      function wind() {
+        if (windMode === 0) return -0.07;
+        if (windMode === 1) return 0;
+        return 0.07;
+      }
+
+      function emitAsh(count) {
+        for (let i = 0; i < count; i += 1) {
+          if (ash.length >= MAX_ASH) break;
+
+          ash.push({
+            x: vent.x + (Math.random() * 2 - 1) * 10,
+            y: vent.y + (Math.random() * 2 - 1) * 6,
+            vx: (Math.random() * 2 - 1) * 1.5,
+            vy: -2.6 - Math.random() * 3.2,
+            life: 0.45 + Math.random() * 1.1,
+            size: 1 + Math.random() * 2.6,
+            heavy: Math.random() < 0.35,
+          });
+        }
+      }
+
+      function emitSmoke(x, y, amount = 1) {
+        if (smoke.length >= MAX_SMOKE) return;
+        smoke.push({
+          x,
+          y,
+          vx: (Math.random() * 2 - 1) * 0.5,
+          vy: -0.5 - Math.random() * 0.7,
+          life: 0.5 + Math.random() * 0.7,
+          size: (8 + Math.random() * 18) * amount,
+          shade: 30 + Math.random() * 50,
+        });
+      }
+
+      function update(dt) {
+        time += dt;
+        burst = Math.max(0, burst - dt * 0.9);
+
+        vent.x += (vent.tx - vent.x) * 0.08;
+        vent.y += (vent.ty - vent.y) * 0.08;
+
+        emitAsh(22 + Math.floor(burst * 42));
+
+        const w = wind();
+
+        for (let i = ash.length - 1; i >= 0; i -= 1) {
+          const p = ash[i];
+          const turb = Math.sin((p.x * 0.02 + time * 4) - Math.cos(p.y * 0.013 + time * 2.1));
+
+          p.vx += (w + turb * 0.03) * dt * 60;
+          p.vy += (p.heavy ? 0.03 : 0.017) * dt * 60;
+
+          p.vx *= 0.992;
+          p.vy *= 0.994;
+
+          p.x += p.vx;
+          p.y += p.vy;
+
+          p.life -= (p.heavy ? 0.01 : 0.007) * dt * 60;
+
+          if (Math.random() < 0.06) {
+            emitSmoke(p.x, p.y, p.heavy ? 0.8 : 1.1);
+          }
+
+          if (p.life <= 0 || p.y > height + 20 || p.x < -20 || p.x > width + 20) {
+            ash.splice(i, 1);
+          }
+        }
+
+        for (let i = smoke.length - 1; i >= 0; i -= 1) {
+          const s = smoke[i];
+          const turb = Math.cos((s.x * 0.01 - time * 1.8) + Math.sin(s.y * 0.008 + time * 2.1));
+
+          s.vx += (w * 0.35 + turb * 0.02) * dt * 60;
+          s.vy -= 0.01 * dt * 60;
+
+          s.vx *= 0.995;
+          s.vy *= 0.995;
+          s.x += s.vx;
+          s.y += s.vy;
+
+          s.life -= 0.0045 * dt * 60;
+          s.size *= 1.003;
+
+          if (s.life <= 0 || s.y < -60 || s.x < -100 || s.x > width + 100) {
+            smoke.splice(i, 1);
+          }
+        }
+      }
+
+      function render() {
+        ctx.fillStyle = "rgba(7, 9, 15, 0.18)";
+        ctx.fillRect(0, 0, width, height);
+
+        for (const s of smoke) {
+          const a = Math.min(0.25, s.life * 0.25);
+          const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.size);
+          g.addColorStop(0, `rgba(${s.shade}, ${s.shade}, ${s.shade + 8}, ${a})`);
+          g.addColorStop(1, "rgba(12, 14, 18, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        for (const p of ash) {
+          const a = Math.min(0.9, p.life * 0.8 + 0.1);
+          const c = p.heavy ? 125 : 170;
+          ctx.fillStyle = `rgba(${c}, ${c}, ${c - 10}, ${a})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const ventGlow = ctx.createRadialGradient(vent.x, vent.y, 0, vent.x, vent.y, 40 + burst * 25);
+        ventGlow.addColorStop(0, `rgba(255, 140, 80, ${0.35 + burst * 0.35})`);
+        ventGlow.addColorStop(1, "rgba(255, 90, 40, 0)");
+        ctx.fillStyle = ventGlow;
+        ctx.beginPath();
+        ctx.arc(vent.x, vent.y, 40 + burst * 25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.05, (now - prev) * 0.001);
+        prev = now;
+
+        update(dt);
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      function updateVent(clientX, clientY) {
+        vent.tx = clientX;
+        vent.ty = clientY;
+      }
+
+      window.addEventListener("mousemove", (event) => updateVent(event.clientX, event.clientY));
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          updateVent(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("click", () => {
+        burst = Math.min(1.5, burst + 0.6);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "w") windMode = (windMode + 1) % 3;
+        if (key === "r") reset();
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      reset();
+      ctx.fillStyle = "#07090f";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

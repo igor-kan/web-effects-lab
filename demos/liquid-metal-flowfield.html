@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Liquid Metal Flowfield</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060b12;
+        color: #ebf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(8, 15, 27, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Liquid Metal Flowfield</h1>
+      <p>
+        Reflective liquid-metal blobs rendered from a dynamic scalar field with chrome-like highlights.
+      </p>
+      <p>Move pointer to pull metal flow. Click to inject droplets. Press <strong>P</strong> pause and <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const GRID_W = 300;
+      const GRID_H = 180;
+      const low = document.createElement("canvas");
+      low.width = GRID_W;
+      low.height = GRID_H;
+      const lowCtx = low.getContext("2d", { alpha: false });
+      const image = lowCtx.createImageData(GRID_W, GRID_H);
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let time = 0;
+      let paused = false;
+
+      const blobs = [];
+      const MAX_BLOBS = 16;
+
+      const pointer = {
+        x: GRID_W * 0.5,
+        y: GRID_H * 0.5,
+        tx: GRID_W * 0.5,
+        ty: GRID_H * 0.5,
+      };
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function resetBlobs() {
+        blobs.length = 0;
+        for (let i = 0; i < 8; i += 1) {
+          blobs.push({
+            x: Math.random() * GRID_W,
+            y: Math.random() * GRID_H,
+            vx: Math.random() * 0.7 - 0.35,
+            vy: Math.random() * 0.7 - 0.35,
+            r: 16 + Math.random() * 30,
+            wobble: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      function addBlob(x, y) {
+        blobs.push({
+          x,
+          y,
+          vx: Math.random() * 1.2 - 0.6,
+          vy: Math.random() * 1.2 - 0.6,
+          r: 16 + Math.random() * 18,
+          wobble: Math.random() * Math.PI * 2,
+        });
+
+        while (blobs.length > MAX_BLOBS) {
+          blobs.shift();
+        }
+      }
+
+      function updateBlobs(dt) {
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        for (const b of blobs) {
+          b.wobble += dt * 1.6;
+          b.vx += Math.sin(time * 1.1 + b.wobble) * 0.02;
+          b.vy += Math.cos(time * 0.9 + b.wobble) * 0.02;
+
+          const dx = pointer.x - b.x;
+          const dy = pointer.y - b.y;
+          const d2 = dx * dx + dy * dy + 80;
+          b.vx += (dx / d2) * 26 * dt;
+          b.vy += (dy / d2) * 26 * dt;
+
+          b.vx *= 0.985;
+          b.vy *= 0.985;
+
+          b.x += b.vx;
+          b.y += b.vy;
+
+          if (b.x < 0 || b.x > GRID_W) b.vx *= -1;
+          if (b.y < 0 || b.y > GRID_H) b.vy *= -1;
+
+          b.x = clamp(b.x, 1, GRID_W - 1);
+          b.y = clamp(b.y, 1, GRID_H - 1);
+        }
+      }
+
+      function renderField() {
+        const px = image.data;
+
+        for (let y = 0; y < GRID_H; y += 1) {
+          for (let x = 0; x < GRID_W; x += 1) {
+            let field = 0;
+
+            for (const b of blobs) {
+              const dx = x - b.x;
+              const dy = y - b.y;
+              field += (b.r * b.r) / (dx * dx + dy * dy + 12);
+            }
+
+            const fx = (Math.sin(x * 0.07 + time * 0.8) + Math.cos(y * 0.06 - time * 1.1)) * 0.08;
+            field += fx;
+
+            const threshold = 1.03;
+            const body = clamp((field - threshold) * 1.9, 0, 1);
+
+            const nx =
+              field -
+              (() => {
+                let f = 0;
+                for (const b of blobs) {
+                  const dx = x + 1 - b.x;
+                  const dy = y - b.y;
+                  f += (b.r * b.r) / (dx * dx + dy * dy + 12);
+                }
+                return f;
+              })();
+            const ny =
+              field -
+              (() => {
+                let f = 0;
+                for (const b of blobs) {
+                  const dx = x - b.x;
+                  const dy = y + 1 - b.y;
+                  f += (b.r * b.r) / (dx * dx + dy * dy + 12);
+                }
+                return f;
+              })();
+
+            const spec = clamp(1 - Math.hypot(nx, ny) * 18, 0, 1);
+            const stripe = Math.sin((x + y) * 0.08 + time * 2.4) * 0.5 + 0.5;
+
+            const chrome = body * (0.25 + spec * 0.55 + stripe * 0.2);
+
+            const r = 10 + chrome * 195;
+            const g = 18 + chrome * 210;
+            const b = 26 + chrome * 225;
+
+            const p = (x + y * GRID_W) * 4;
+            px[p] = clamp(r, 0, 255);
+            px[p + 1] = clamp(g, 0, 255);
+            px[p + 2] = clamp(b, 0, 255);
+            px[p + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+      }
+
+      function frame() {
+        if (!paused) {
+          const dt = 0.016;
+          time += dt;
+          updateBlobs(dt);
+        }
+
+        renderField();
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+
+        requestAnimationFrame(frame);
+      }
+
+      function updatePointer(clientX, clientY) {
+        pointer.tx = (clientX / width) * GRID_W;
+        pointer.ty = (clientY / height) * GRID_H;
+      }
+
+      window.addEventListener("mousemove", (event) => updatePointer(event.clientX, event.clientY));
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          updatePointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("click", (event) => {
+        const x = (event.clientX / width) * GRID_W;
+        const y = (event.clientY / height) * GRID_H;
+        addBlob(x, y);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "p") paused = !paused;
+        if (key === "r") resetBlobs();
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      resetBlobs();
+      frame();
+    </script>
+  </body>
+</html>

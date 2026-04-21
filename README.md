@@ -50,6 +50,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Volumetric fire column simulation
 - Wildfire smoke front spread model
 - Ember fog turbulence field
+- Liquid metal flowfield effect
+- Storm ocean surface simulation
+- Laser scanner arena lighting
+- Ash plume volcanic simulation
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -145,6 +149,10 @@ web-effects-lab/
     volumetric-fire-column.html
     wildfire-smoke-front.html
     ember-fog-turbulence.html
+    liquid-metal-flowfield.html
+    storm-ocean-surface.html
+    laser-scanner-arena.html
+    ash-plume-simulation.html
 ```
 
 ## Notes

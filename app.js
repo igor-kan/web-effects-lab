@@ -505,6 +505,50 @@ const demos = [
     tags: ["2D", "smoke", "embers", "interactive"],
     file: "demos/ember-fog-turbulence.html",
   },
+  {
+    id: "liquid-metal-flowfield",
+    title: "Liquid Metal Flowfield",
+    stack: "Scalar Field Chrome",
+    level: "Advanced",
+    description:
+      "Reflective liquid-metal field with dynamic blob advection and chrome-like highlight response.",
+    interaction: "Move pointer to pull flow, click to inject droplets, P pauses, and R resets.",
+    tags: ["2D", "liquid", "metal", "interactive"],
+    file: "demos/liquid-metal-flowfield.html",
+  },
+  {
+    id: "storm-ocean-surface",
+    title: "Storm Ocean Surface",
+    stack: "Wave Grid Simulation",
+    level: "Advanced",
+    description:
+      "Stormy ocean wave-grid with wind-driven chop, crest foam shading, and interactive splashes.",
+    interaction: "Click/drag to splash, W cycles wind, A toggles auto storms, and R resets.",
+    tags: ["2D", "water", "waves", "simulation"],
+    file: "demos/storm-ocean-surface.html",
+  },
+  {
+    id: "laser-scanner-arena",
+    title: "Laser Scanner Arena",
+    stack: "Light Beam System",
+    level: "Advanced",
+    description:
+      "Multi-emitter scanner network with reflective nodes, sweep gating, and pulse-synchronized beams.",
+    interaction: "Move pointer to steer center scanner, click pulse, C color mode, and R resets nodes.",
+    tags: ["2D", "light", "laser", "interactive"],
+    file: "demos/laser-scanner-arena.html",
+  },
+  {
+    id: "ash-plume-simulation",
+    title: "Ash Plume Simulation",
+    stack: "Volcanic Particle Sim",
+    level: "Advanced",
+    description:
+      "Volcanic ash and soot plume with thermal lift, wind drift, ember fallout, and layered haze.",
+    interaction: "Click eruption burst, move pointer to shift vent, W cycles wind, and R resets.",
+    tags: ["2D", "smoke", "ash", "simulation"],
+    file: "demos/ash-plume-simulation.html",
+  },
 ];
 
 const state = {

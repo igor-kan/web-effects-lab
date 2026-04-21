@@ -17,6 +17,8 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Verlet cloth physics with wind and user interaction
 - Procedural neon city drive scene (Three.js)
 - Holographic shader-relief model (Three.js + GLSL)
+- Flocking boids swarm simulation
+- Reaction-diffusion chemistry simulation
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -64,6 +66,8 @@ web-effects-lab/
     cloth-verlet-wind.html
     procedural-city-drive.html
     holographic-relief-model.html
+    boids-swarm-lab.html
+    reaction-diffusion-lab.html
 ```
 
 ## Notes

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boids Swarm Lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060c1a;
+        color: #e7f5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 430px;
+        background: rgba(6, 16, 30, 0.58);
+        border: 1px solid rgba(145, 211, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+        opacity: 0.92;
+      }
+
+      .home {
+        color: #97d8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Boids Swarm Lab</h1>
+      <p>Move pointer to repel the flock. Press <strong>F</strong> to toggle attract/repel behavior.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const BOID_COUNT = 240;
+      const boids = [];
+      const pointer = { x: width * 0.5, y: height * 0.5, active: false, attract: false };
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function seed() {
+        boids.length = 0;
+        for (let i = 0; i < BOID_COUNT; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1.2 + Math.random() * 1.8;
+          boids.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            hue: 176 + Math.random() * 64,
+          });
+        }
+      }
+
+      function tick() {
+        ctx.fillStyle = "rgba(4, 10, 20, 0.22)";
+        ctx.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < boids.length; i += 1) {
+          const b = boids[i];
+          let alignX = 0;
+          let alignY = 0;
+          let cohesionX = 0;
+          let cohesionY = 0;
+          let separationX = 0;
+          let separationY = 0;
+          let count = 0;
+
+          for (let j = 0; j < boids.length; j += 1) {
+            if (i === j) continue;
+            const o = boids[j];
+            const dx = o.x - b.x;
+            const dy = o.y - b.y;
+            const d2 = dx * dx + dy * dy;
+
+            if (d2 > 0 && d2 < 78 * 78) {
+              alignX += o.vx;
+              alignY += o.vy;
+              cohesionX += o.x;
+              cohesionY += o.y;
+              count += 1;
+            }
+
+            if (d2 > 0 && d2 < 22 * 22) {
+              separationX -= dx / (Math.sqrt(d2) + 0.0001);
+              separationY -= dy / (Math.sqrt(d2) + 0.0001);
+            }
+          }
+
+          if (count > 0) {
+            alignX /= count;
+            alignY /= count;
+            const alignMag = Math.hypot(alignX, alignY) || 1;
+            alignX = (alignX / alignMag) * 2.2 - b.vx;
+            alignY = (alignY / alignMag) * 2.2 - b.vy;
+
+            cohesionX = cohesionX / count - b.x;
+            cohesionY = cohesionY / count - b.y;
+          }
+
+          b.vx += alignX * 0.018 + cohesionX * 0.0022 + separationX * 0.04;
+          b.vy += alignY * 0.018 + cohesionY * 0.0022 + separationY * 0.04;
+
+          if (pointer.active) {
+            const dx = pointer.x - b.x;
+            const dy = pointer.y - b.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < 180 * 180) {
+              const d = Math.sqrt(d2) + 0.0001;
+              const dir = pointer.attract ? 1 : -1;
+              b.vx += (dx / d) * 0.22 * dir;
+              b.vy += (dy / d) * 0.22 * dir;
+            }
+          }
+
+          const speed = Math.hypot(b.vx, b.vy);
+          const maxSpeed = 3.2;
+          const minSpeed = 1.2;
+          if (speed > maxSpeed) {
+            b.vx = (b.vx / speed) * maxSpeed;
+            b.vy = (b.vy / speed) * maxSpeed;
+          } else if (speed < minSpeed) {
+            b.vx = (b.vx / (speed || 1)) * minSpeed;
+            b.vy = (b.vy / (speed || 1)) * minSpeed;
+          }
+
+          b.x += b.vx;
+          b.y += b.vy;
+
+          if (b.x < 0) b.x += width;
+          if (b.x > width) b.x -= width;
+          if (b.y < 0) b.y += height;
+          if (b.y > height) b.y -= height;
+
+          const a = Math.atan2(b.vy, b.vx);
+          const size = 5.2;
+
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(a);
+          ctx.fillStyle = `hsla(${b.hue}, 95%, 68%, 0.9)`;
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = `hsla(${b.hue}, 95%, 68%, 0.6)`;
+          ctx.beginPath();
+          ctx.moveTo(size, 0);
+          ctx.lineTo(-size * 0.8, size * 0.58);
+          ctx.lineTo(-size * 0.38, 0);
+          ctx.lineTo(-size * 0.8, -size * 0.58);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      function setPointer(x, y) {
+        pointer.x = x;
+        pointer.y = y;
+        pointer.active = true;
+      }
+
+      window.addEventListener("resize", () => {
+        resize();
+        seed();
+      });
+
+      window.addEventListener("mousemove", (event) => setPointer(event.clientX, event.clientY));
+      window.addEventListener("mouseleave", () => {
+        pointer.active = false;
+      });
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.active = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key.toLowerCase() === "f") {
+          pointer.attract = !pointer.attract;
+        }
+      });
+
+      resize();
+      seed();
+      tick();
+    </script>
+  </body>
+</html>

@@ -59,13 +59,16 @@
     </div>
 
     <script type="module">
-      import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
-      import { OrbitControls } from "https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js";
+      import * as THREE from "https://esm.sh/three@0.164.1";
+      import { OrbitControls } from "https://esm.sh/three@0.164.1/examples/jsm/controls/OrbitControls.js";
 
       const canvas = document.getElementById("stage");
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xeaf7ff);
@@ -79,6 +82,8 @@
       controls.enablePan = false;
       controls.minDistance = 4;
       controls.maxDistance = 16;
+      controls.minPolarAngle = Math.PI * 0.08;
+      controls.maxPolarAngle = Math.PI * 0.92;
       controls.target.set(0, 1.4, 0);
 
       const hemi = new THREE.HemisphereLight(0xf6fbff, 0xa4c0d0, 0.9);
@@ -87,6 +92,7 @@
       const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
       keyLight.position.set(5, 9, 5);
       scene.add(keyLight);
+      scene.add(keyLight.target);
 
       const fillLight = new THREE.PointLight(0x79d5ff, 2.6, 20, 2);
       fillLight.position.set(-4, 3, 1);
@@ -173,17 +179,23 @@
       }
 
       let pulseEnabled = true;
+      let autoSpin = true;
 
       window.addEventListener("keydown", (event) => {
         if (event.key.toLowerCase() === "r") {
           pulseEnabled = !pulseEnabled;
+        }
+        if (event.key.toLowerCase() === "a") {
+          autoSpin = !autoSpin;
         }
       });
 
       function animate(time) {
         const t = time * 0.001;
 
-        model.rotation.y = t * 0.45;
+        if (autoSpin) {
+          model.rotation.y = t * 0.45;
+        }
         model.position.y = Math.sin(t * 1.4) * 0.12;
 
         ringA.rotation.z += 0.008;
@@ -202,6 +214,9 @@
           ringB.scale.setScalar(1);
           ringC.scale.setScalar(1);
         }
+
+        keyLight.position.set(Math.cos(t * 0.45) * 7, 8.4 + Math.sin(t * 0.85) * 1.2, Math.sin(t * 0.45) * 7);
+        keyLight.target.position.set(0, 1.5, 0);
 
         for (const cube of floaters) {
           const data = cube.userData;

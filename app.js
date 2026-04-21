@@ -61,7 +61,7 @@ const demos = [
     level: "Intermediate",
     description:
       "Procedural hard-surface model with orbit rings, area lighting, and mouse orbit controls.",
-    interaction: "Drag to orbit, wheel to zoom, press R to toggle ring pulse.",
+    interaction: "Drag to orbit, wheel to zoom, press R for pulse and A for auto-spin.",
     tags: ["3D", "model", "lighting", "interactive"],
     file: "demos/orbital-model-lab.html",
   },
@@ -105,7 +105,7 @@ const demos = [
     level: "Advanced",
     description:
       "Signed-distance-field tunnel renderer with animated geometry and volumetric-style glow.",
-    interaction: "Move pointer to steer camera orientation through the tunnel.",
+    interaction: "Move pointer to steer, press Space to pause travel, and press Q to change speed.",
     tags: ["3D", "shader", "raymarch", "interactive"],
     file: "demos/raymarch-tunnel.html",
   },
@@ -141,6 +141,28 @@ const demos = [
     interaction: "Drag to orbit and inspect the animated model surface.",
     tags: ["3D", "model", "shader", "interactive"],
     file: "demos/holographic-relief-model.html",
+  },
+  {
+    id: "boids-swarm-lab",
+    title: "Boids Swarm Lab",
+    stack: "Canvas Simulation",
+    level: "Advanced",
+    description:
+      "Flocking simulation with alignment, cohesion, separation, and pointer-driven predator/prey behavior.",
+    interaction: "Move pointer to influence flock; press F to toggle attract/repel mode.",
+    tags: ["2D", "simulation", "physics", "interactive"],
+    file: "demos/boids-swarm-lab.html",
+  },
+  {
+    id: "reaction-diffusion-lab",
+    title: "Reaction Diffusion Lab",
+    stack: "Grid Simulation",
+    level: "Advanced",
+    description:
+      "Gray-Scott style reaction-diffusion pattern generator with live reagent injection and palette cycling.",
+    interaction: "Drag to inject reagent, press R to reset, and press T to switch palettes.",
+    tags: ["2D", "simulation", "chemistry", "interactive"],
+    file: "demos/reaction-diffusion-lab.html",
   },
 ];
 

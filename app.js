@@ -334,17 +334,38 @@ const demos = [
 const state = {
   query: "",
   activeTags: new Set(),
+  viewMode: localStorage.getItem("effectsLabViewMode") === "table" ? "table" : "cards",
 };
 
 const grid = document.getElementById("demoGrid");
+const tableWrap = document.getElementById("demoTableWrap");
+const tableBody = document.getElementById("demoTableBody");
 const template = document.getElementById("demoCardTemplate");
+const rowTemplate = document.getElementById("demoRowTemplate");
 const searchInput = document.getElementById("searchInput");
 const tagFilters = document.getElementById("tagFilters");
 const clearFilters = document.getElementById("clearFilters");
 const demoCount = document.getElementById("demoCount");
+const cardViewBtn = document.getElementById("cardViewBtn");
+const tableViewBtn = document.getElementById("tableViewBtn");
+
+const DEFAULT_TWEAK_CONTROLS = "Brightness, Saturation, Contrast, Hue, Blur";
 
 function getTags() {
   return [...new Set(demos.flatMap((demo) => demo.tags))].sort((a, b) => a.localeCompare(b));
+}
+
+function getControlsLabel(demo) {
+  return demo.controls || DEFAULT_TWEAK_CONTROLS;
+}
+
+function getViewerUrl(demo) {
+  const params = new URLSearchParams({
+    demo: demo.file,
+    title: demo.title,
+    id: demo.id,
+  });
+  return `demo-viewer.html?${params.toString()}`;
 }
 
 function isVisible(demo) {
@@ -376,7 +397,7 @@ function createTagChip(tag, active = false, clickable = true) {
     }
 
     renderFilters();
-    renderGrid();
+    renderResults();
   });
 
   return chip;
@@ -416,11 +437,8 @@ async function downloadFile(path, fallbackName) {
   }
 }
 
-function renderGrid() {
+function renderGrid(visibleDemos) {
   grid.innerHTML = "";
-
-  const visibleDemos = demos.filter(isVisible);
-  demoCount.textContent = `${visibleDemos.length} demos visible`;
 
   if (visibleDemos.length === 0) {
     const empty = document.createElement("article");
@@ -439,6 +457,7 @@ function renderGrid() {
     clone.querySelector(".title").textContent = demo.title;
     clone.querySelector(".description").textContent = demo.description;
     clone.querySelector(".interaction").textContent = demo.interaction;
+    clone.querySelector(".controls").textContent = `Tweak menu: ${getControlsLabel(demo)}`;
 
     const tagsContainer = clone.querySelector(".tags");
     demo.tags.forEach((tag) => {
@@ -446,7 +465,7 @@ function renderGrid() {
     });
 
     const openButton = clone.querySelector(".open");
-    openButton.href = demo.file;
+    openButton.href = getViewerUrl(demo);
 
     const downloadButton = clone.querySelector(".download");
     downloadButton.addEventListener("click", () => {
@@ -458,9 +477,67 @@ function renderGrid() {
   });
 }
 
+function renderTable(visibleDemos) {
+  tableBody.innerHTML = "";
+
+  if (visibleDemos.length === 0) {
+    const row = document.createElement("tr");
+    row.className = "empty-row";
+    row.innerHTML =
+      '<td colspan="6">No demos match your filters. Clear filters and try a broader query.</td>';
+    tableBody.append(row);
+    return;
+  }
+
+  visibleDemos.forEach((demo) => {
+    const clone = rowTemplate.content.cloneNode(true);
+    clone.querySelector(".title").textContent = demo.title;
+    clone.querySelector(".description").textContent = demo.description;
+    clone.querySelector(".interaction").textContent = demo.interaction;
+    clone.querySelector(".stack").textContent = demo.stack;
+    clone.querySelector(".level").textContent = demo.level;
+    clone.querySelector(".controls").textContent = getControlsLabel(demo);
+
+    const tagsContainer = clone.querySelector(".tags");
+    demo.tags.forEach((tag) => {
+      tagsContainer.append(createTagChip(tag, false, false));
+    });
+
+    const openButton = clone.querySelector(".open");
+    openButton.href = getViewerUrl(demo);
+
+    const downloadButton = clone.querySelector(".download");
+    downloadButton.addEventListener("click", () => {
+      downloadFile(demo.file, demo.id);
+    });
+
+    tableBody.append(clone);
+  });
+}
+
+function setViewMode(mode) {
+  state.viewMode = mode === "table" ? "table" : "cards";
+  localStorage.setItem("effectsLabViewMode", state.viewMode);
+
+  const cards = state.viewMode === "cards";
+  grid.hidden = !cards;
+  tableWrap.hidden = cards;
+
+  cardViewBtn.classList.toggle("active", cards);
+  tableViewBtn.classList.toggle("active", !cards);
+}
+
+function renderResults() {
+  const visibleDemos = demos.filter(isVisible);
+  demoCount.textContent = `${visibleDemos.length} / ${demos.length} demos`;
+  renderGrid(visibleDemos);
+  renderTable(visibleDemos);
+  setViewMode(state.viewMode);
+}
+
 searchInput.addEventListener("input", (event) => {
   state.query = event.target.value.trim().toLowerCase();
-  renderGrid();
+  renderResults();
 });
 
 clearFilters.addEventListener("click", () => {
@@ -468,8 +545,16 @@ clearFilters.addEventListener("click", () => {
   state.query = "";
   searchInput.value = "";
   renderFilters();
-  renderGrid();
+  renderResults();
+});
+
+cardViewBtn.addEventListener("click", () => {
+  setViewMode("cards");
+});
+
+tableViewBtn.addEventListener("click", () => {
+  setViewMode("table");
 });
 
 renderFilters();
-renderGrid();
+renderResults();

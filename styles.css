@@ -208,6 +208,12 @@ h1 {
   gap: 0.55rem;
 }
 
+.view-switch {
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .chip {
   border: 1px solid rgba(20, 52, 79, 0.22);
   border-radius: 999px;
@@ -228,6 +234,10 @@ h1 {
 
 .chip.clear {
   justify-self: start;
+}
+
+.chip.view {
+  min-width: 108px;
 }
 
 .demo-grid {
@@ -294,6 +304,13 @@ h1 {
   font-size: 0.88rem;
 }
 
+.controls {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #0d6f8f;
+}
+
 .tags {
   display: flex;
   gap: 0.4rem;
@@ -323,6 +340,88 @@ h1 {
   box-shadow: 0 9px 16px rgba(20, 52, 79, 0.22);
 }
 
+.demo-table-wrap {
+  margin-top: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: auto;
+  background: rgba(255, 252, 247, 0.8);
+  box-shadow: var(--shadow);
+}
+
+.demo-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.demo-table th,
+.demo-table td {
+  border-bottom: 1px solid rgba(20, 52, 79, 0.14);
+  vertical-align: top;
+  padding: 0.82rem 0.72rem;
+  text-align: left;
+}
+
+.demo-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: rgba(247, 242, 235, 0.95);
+}
+
+.demo-table .title {
+  margin: 0;
+  font-size: 1.04rem;
+}
+
+.demo-table .description,
+.demo-table .interaction {
+  margin-top: 0.38rem;
+  font-size: 0.82rem;
+}
+
+.demo-table .stack,
+.demo-table .level {
+  font-size: 0.8rem;
+}
+
+.demo-table .tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.demo-table .tags .chip {
+  font-size: 0.66rem;
+}
+
+.demo-table .empty-row td {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  padding: 1rem 0.72rem;
+}
+
+.actions-cell {
+  min-width: 196px;
+}
+
+.actions-cell .btn {
+  display: inline-block;
+  margin: 0.14rem 0.22rem 0.14rem 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.actions-cell .download {
+  background: linear-gradient(140deg, #1d5870, #14344f);
+  box-shadow: 0 9px 16px rgba(20, 52, 79, 0.18);
+}
+
 .footer {
   margin-top: 1.5rem;
   font-size: 0.92rem;
@@ -349,5 +448,13 @@ h1 {
 
   .demo-grid {
     grid-template-columns: 1fr;
+  }
+
+  .view-switch {
+    width: 100%;
+  }
+
+  .chip.view {
+    flex: 1;
   }
 }

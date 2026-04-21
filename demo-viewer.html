@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #17364f;
+        --ink-soft: #3a536a;
+        --teal: #00a38f;
+        --orange: #fb7a31;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 10%, #fff2c7 0%, transparent 35%),
+          radial-gradient(circle at 85% 22%, #d8fff5 0%, transparent 40%),
+          linear-gradient(170deg, #f5f0e7 0%, #efe3d0 100%);
+      }
+
+      .shell {
+        width: min(1250px, 96vw);
+        margin: 0 auto;
+        padding: 1rem 0;
+      }
+
+      .topbar {
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 0.7rem;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+      }
+
+      .pill {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.75rem;
+        border: 1px solid rgba(20, 52, 79, 0.2);
+        border-radius: 999px;
+        padding: 0.35rem 0.58rem;
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: linear-gradient(130deg, #ff9350, #fb7a31);
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        text-decoration: none;
+        padding: 0.52rem 0.86rem;
+        cursor: pointer;
+        box-shadow: 0 8px 16px rgba(251, 122, 49, 0.26);
+      }
+
+      .btn.secondary {
+        background: linear-gradient(140deg, #13bca5, #00a38f);
+        box-shadow: 0 8px 16px rgba(0, 163, 143, 0.22);
+      }
+
+      .viewer {
+        position: relative;
+        border: 1px solid rgba(20, 52, 79, 0.2);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0a0f18;
+        box-shadow: 0 20px 40px rgba(19, 53, 84, 0.2);
+      }
+
+      iframe {
+        width: 100%;
+        height: calc(100vh - 130px);
+        min-height: 530px;
+        border: 0;
+        display: block;
+        background: #060b12;
+      }
+
+      .tweak-panel {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        z-index: 3;
+        width: min(330px, calc(100% - 24px));
+        border: 1px solid rgba(154, 202, 233, 0.3);
+        border-radius: 12px;
+        background: rgba(8, 14, 27, 0.64);
+        color: #e8f5ff;
+        backdrop-filter: blur(8px);
+      }
+
+      .tweak-panel details {
+        padding: 0.55rem 0.65rem 0.65rem;
+      }
+
+      .tweak-panel summary {
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
+      .tweak-grid {
+        margin-top: 0.55rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .control {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.28rem 0.55rem;
+        align-items: center;
+      }
+
+      .control label {
+        font-size: 0.76rem;
+        color: #c7dceb;
+      }
+
+      .control output {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.72rem;
+        color: #d4f6ea;
+      }
+
+      .control input {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+
+      .hint {
+        margin: 0.4rem 0 0;
+        font-size: 0.73rem;
+        line-height: 1.35;
+        color: #b9cad8;
+      }
+
+      .error {
+        margin-top: 1rem;
+        border: 1px dashed rgba(20, 52, 79, 0.4);
+        border-radius: 14px;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.6);
+      }
+
+      @media (max-width: 720px) {
+        iframe {
+          height: calc(100vh - 190px);
+          min-height: 420px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <h1 id="demoTitle" class="title">Demo Viewer</h1>
+        <span id="statusPill" class="pill">Loading demo...</span>
+        <a class="btn secondary" href="index.html">Back to Gallery</a>
+        <a id="openRaw" class="btn" target="_blank" rel="noopener noreferrer">Open Raw Demo</a>
+        <button id="downloadBtn" class="btn" type="button">Download HTML</button>
+      </div>
+
+      <section id="viewer" class="viewer" hidden>
+        <iframe id="demoFrame" title="Effect demo"></iframe>
+        <aside class="tweak-panel" aria-label="Tweak controls">
+          <details open>
+            <summary>Quick Tweak Menu</summary>
+            <div class="tweak-grid">
+              <div class="control">
+                <label for="brightness">Brightness</label>
+                <output id="brightnessVal" for="brightness">100%</output>
+                <input id="brightness" type="range" min="50" max="180" step="1" value="100" />
+              </div>
+              <div class="control">
+                <label for="contrast">Contrast</label>
+                <output id="contrastVal" for="contrast">100%</output>
+                <input id="contrast" type="range" min="60" max="180" step="1" value="100" />
+              </div>
+              <div class="control">
+                <label for="saturation">Saturation</label>
+                <output id="saturationVal" for="saturation">100%</output>
+                <input id="saturation" type="range" min="0" max="220" step="1" value="100" />
+              </div>
+              <div class="control">
+                <label for="hue">Hue</label>
+                <output id="hueVal" for="hue">0deg</output>
+                <input id="hue" type="range" min="-180" max="180" step="1" value="0" />
+              </div>
+              <div class="control">
+                <label for="blur">Bloom Blur</label>
+                <output id="blurVal" for="blur">0.0px</output>
+                <input id="blur" type="range" min="0" max="4" step="0.1" value="0" />
+              </div>
+            </div>
+            <p class="hint">These sliders tweak visual output globally for any demo. Use reset to return to original look.</p>
+            <button id="resetTweaks" class="btn secondary" type="button">Reset Tweaks</button>
+          </details>
+        </aside>
+      </section>
+
+      <article id="errorBox" class="error" hidden>
+        Unable to load this demo. Use the gallery links so a valid `demos/*.html` file is selected.
+      </article>
+    </main>
+
+    <script>
+      const SAFE_DEMO_PATH = /^demos\/[a-z0-9-]+\.html$/i;
+
+      const params = new URLSearchParams(window.location.search);
+      const demoPath = params.get("demo") || "";
+      const demoTitle = params.get("title") || "Demo";
+      const demoId = params.get("id") || demoPath.replace(/^demos\//, "").replace(/\.html$/, "demo");
+
+      const titleEl = document.getElementById("demoTitle");
+      const statusPill = document.getElementById("statusPill");
+      const viewerEl = document.getElementById("viewer");
+      const errorEl = document.getElementById("errorBox");
+      const frame = document.getElementById("demoFrame");
+      const openRaw = document.getElementById("openRaw");
+      const downloadBtn = document.getElementById("downloadBtn");
+
+      const tweakKeys = ["brightness", "contrast", "saturation", "hue", "blur"];
+      const sliders = Object.fromEntries(
+        tweakKeys.map((key) => [key, document.getElementById(key)])
+      );
+      const outputs = Object.fromEntries(
+        tweakKeys.map((key) => [key, document.getElementById(`${key}Val`)])
+      );
+
+      function setInvalid() {
+        titleEl.textContent = "Invalid Demo Link";
+        statusPill.textContent = "Invalid";
+        viewerEl.hidden = true;
+        errorEl.hidden = false;
+        openRaw.removeAttribute("href");
+        openRaw.style.pointerEvents = "none";
+        downloadBtn.disabled = true;
+      }
+
+      function updateOutputLabels() {
+        outputs.brightness.textContent = `${sliders.brightness.value}%`;
+        outputs.contrast.textContent = `${sliders.contrast.value}%`;
+        outputs.saturation.textContent = `${sliders.saturation.value}%`;
+        outputs.hue.textContent = `${sliders.hue.value}deg`;
+        outputs.blur.textContent = `${Number(sliders.blur.value).toFixed(1)}px`;
+      }
+
+      function applyTweaks() {
+        frame.style.filter = [
+          `brightness(${sliders.brightness.value}%)`,
+          `contrast(${sliders.contrast.value}%)`,
+          `saturate(${sliders.saturation.value}%)`,
+          `hue-rotate(${sliders.hue.value}deg)`,
+          `blur(${sliders.blur.value}px)`,
+        ].join(" ");
+        updateOutputLabels();
+      }
+
+      async function downloadFile(path, fallbackName) {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${path}`);
+          }
+
+          const content = await response.text();
+          const blob = new Blob([content], { type: "text/html;charset=utf-8" });
+          const objectUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+
+          anchor.href = objectUrl;
+          anchor.download = `${fallbackName}.html`;
+          document.body.append(anchor);
+          anchor.click();
+          anchor.remove();
+
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+        } catch (error) {
+          console.error(error);
+          window.open(path, "_blank", "noopener");
+        }
+      }
+
+      if (!SAFE_DEMO_PATH.test(demoPath)) {
+        setInvalid();
+      } else {
+        titleEl.textContent = `${demoTitle} Viewer`;
+        document.title = `${demoTitle} | Demo Viewer`;
+        statusPill.textContent = "Loading...";
+        viewerEl.hidden = false;
+        errorEl.hidden = true;
+
+        openRaw.href = demoPath;
+        downloadBtn.addEventListener("click", () => downloadFile(demoPath, demoId));
+
+        frame.addEventListener("load", () => {
+          statusPill.textContent = "Live";
+        });
+
+        frame.addEventListener("error", () => {
+          statusPill.textContent = "Load error";
+        });
+
+        frame.src = demoPath;
+      }
+
+      for (const slider of Object.values(sliders)) {
+        slider.addEventListener("input", applyTweaks);
+      }
+
+      document.getElementById("resetTweaks").addEventListener("click", () => {
+        sliders.brightness.value = 100;
+        sliders.contrast.value = 100;
+        sliders.saturation.value = 100;
+        sliders.hue.value = 0;
+        sliders.blur.value = 0;
+        applyTweaks();
+      });
+
+      applyTweaks();
+    </script>
+  </body>
+</html>

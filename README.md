@@ -53,12 +53,26 @@ Then open: `http://localhost:5500`
 This repository includes a workflow at `.github/workflows/deploy-pages.yml`.
 Every push to `main` automatically deploys the static site to GitHub Pages.
 
-## Download workflow
+## Browse modes + tweak menu
 
-From the gallery home page, each card includes:
+From the gallery home page, users can switch between:
 
-- `Open Demo`: launches demo in a new tab
+- `Card View`
+- `Table View`
+
+Every demo row/card includes:
+
+- `Open + Tweaks`: launches `demo-viewer.html` with a compact slider menu
+- `Open Raw Demo`: available inside the viewer
 - `Download HTML`: downloads that exact standalone demo file
+
+The tweak menu provides global sliders for:
+
+- `Brightness`
+- `Contrast`
+- `Saturation`
+- `Hue`
+- `Bloom Blur`
 
 ## Repository structure
 
@@ -67,6 +81,7 @@ web-effects-lab/
   index.html
   styles.css
   app.js
+  demo-viewer.html
   demos/
     smoke-cursor.html
     fluid-flow.html

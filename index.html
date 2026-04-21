@@ -50,10 +50,29 @@
           />
         </div>
         <div id="tagFilters" class="tag-filters" role="group" aria-label="Filter by tag"></div>
+        <div class="view-switch" role="group" aria-label="View mode">
+          <button id="cardViewBtn" class="chip view active" type="button">Card View</button>
+          <button id="tableViewBtn" class="chip view" type="button">Table View</button>
+        </div>
         <button id="clearFilters" class="chip clear" type="button">Clear Filters</button>
       </section>
 
       <section id="demoGrid" class="demo-grid" aria-live="polite"></section>
+      <section id="demoTableWrap" class="demo-table-wrap" aria-live="polite" hidden>
+        <table class="demo-table">
+          <thead>
+            <tr>
+              <th scope="col">Demo</th>
+              <th scope="col">Stack</th>
+              <th scope="col">Level</th>
+              <th scope="col">Tags</th>
+              <th scope="col">Tweak Controls</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="demoTableBody"></tbody>
+        </table>
+      </section>
 
       <template id="demoCardTemplate">
         <article class="demo-card">
@@ -64,12 +83,31 @@
           <h2 class="title"></h2>
           <p class="description"></p>
           <p class="interaction"></p>
+          <p class="controls"></p>
           <div class="tags"></div>
           <div class="card-actions">
-            <a class="btn open" target="_blank" rel="noopener noreferrer">Open Demo</a>
+            <a class="btn open" target="_blank" rel="noopener noreferrer">Open + Tweaks</a>
             <button class="btn download" type="button">Download HTML</button>
           </div>
         </article>
+      </template>
+
+      <template id="demoRowTemplate">
+        <tr>
+          <td class="title-cell">
+            <p class="title"></p>
+            <p class="description"></p>
+            <p class="interaction"></p>
+          </td>
+          <td class="stack"></td>
+          <td class="level"></td>
+          <td class="tags"></td>
+          <td class="controls"></td>
+          <td class="actions-cell">
+            <a class="btn open" target="_blank" rel="noopener noreferrer">Open + Tweaks</a>
+            <button class="btn download" type="button">Download HTML</button>
+          </td>
+        </tr>
       </template>
 
       <footer class="footer">

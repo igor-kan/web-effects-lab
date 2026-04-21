@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stem Growth Simulation</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 20%, #1d3025, #0b1410 70%);
+        color: #e9ffe9;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 480px;
+        background: rgba(12, 24, 18, 0.6);
+        border: 1px solid rgba(137, 223, 158, 0.35);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #b4f7bc;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Stem Growth Simulation</h1>
+      <p>Click to plant seeds. Stems branch, chase light, and sprout leaves over time.</p>
+      <p>Press <strong>R</strong> to reset and <strong>W</strong> to toggle wind.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const segments = [];
+      const leaves = [];
+
+      let windEnabled = true;
+      let time = 0;
+      let seedHue = 96;
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function addSeed(x, y) {
+        seedHue = (seedHue + 18) % 360;
+        segments.push({
+          x,
+          y,
+          angle: -Math.PI * 0.5 + (Math.random() - 0.5) * 0.14,
+          length: 0,
+          maxLength: 8 + Math.random() * 12,
+          thickness: 2.8 + Math.random() * 2.6,
+          age: 0,
+          energy: 1,
+          hue: seedHue,
+          depth: 0,
+          parentX: x,
+          parentY: y,
+          done: false,
+        });
+      }
+
+      function branch(parent, x, y, direction = 1) {
+        if (parent.depth > 8) return;
+        const spread = 0.24 + Math.random() * 0.36;
+
+        segments.push({
+          x,
+          y,
+          angle: parent.angle + spread * direction + (Math.random() - 0.5) * 0.16,
+          length: 0,
+          maxLength: parent.maxLength * (0.78 + Math.random() * 0.28),
+          thickness: Math.max(0.8, parent.thickness * (0.68 + Math.random() * 0.18)),
+          age: 0,
+          energy: parent.energy * 0.9,
+          hue: (parent.hue + (Math.random() - 0.5) * 16 + 360) % 360,
+          depth: parent.depth + 1,
+          parentX: x,
+          parentY: y,
+          done: false,
+        });
+      }
+
+      function spawnLeaf(x, y, hue) {
+        leaves.push({
+          x,
+          y,
+          size: 2 + Math.random() * 3,
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.05,
+          life: 220 + Math.random() * 280,
+          hue,
+        });
+      }
+
+      function updateGrowth() {
+        time += 1;
+
+        const lightX = width * (0.5 + Math.sin(time * 0.0012) * 0.22);
+        const lightY = height * 0.1;
+
+        for (let i = segments.length - 1; i >= 0; i -= 1) {
+          const s = segments[i];
+          if (s.done) continue;
+
+          s.age += 1;
+
+          const sx = s.parentX + Math.cos(s.angle) * s.length;
+          const sy = s.parentY + Math.sin(s.angle) * s.length;
+
+          const toLightX = lightX - sx;
+          const toLightY = lightY - sy;
+          const lightAngle = Math.atan2(toLightY, toLightX);
+
+          let delta = ((lightAngle - s.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+          delta = Math.max(-0.02, Math.min(0.02, delta));
+
+          const wind = windEnabled ? Math.sin(time * 0.02 + s.depth * 0.9 + sx * 0.01) * 0.01 : 0;
+          s.angle += delta * 0.12 + wind;
+
+          s.length += 0.35 + (1 - s.depth / 10) * 0.25;
+
+          if (s.length >= s.maxLength) {
+            s.length = s.maxLength;
+            s.done = true;
+
+            const ex = s.parentX + Math.cos(s.angle) * s.length;
+            const ey = s.parentY + Math.sin(s.angle) * s.length;
+
+            const branchChance = Math.max(0.12, 0.55 - s.depth * 0.06);
+            if (Math.random() < branchChance) {
+              branch(s, ex, ey, 1);
+            }
+            if (Math.random() < branchChance * 0.85) {
+              branch(s, ex, ey, -1);
+            }
+
+            if (s.depth > 3 && Math.random() < 0.85) {
+              spawnLeaf(ex, ey, (s.hue + 70) % 360);
+            }
+          }
+        }
+
+        for (let i = leaves.length - 1; i >= 0; i -= 1) {
+          const leaf = leaves[i];
+          leaf.life -= 1;
+          leaf.angle += leaf.spin;
+          leaf.y += 0.03;
+
+          if (leaf.life <= 0) {
+            leaves.splice(i, 1);
+          }
+        }
+      }
+
+      function drawBackground() {
+        const g = ctx.createLinearGradient(0, 0, 0, height);
+        g.addColorStop(0, "#172a20");
+        g.addColorStop(1, "#0a130f");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < 60; i += 1) {
+          const x = (i * 97.31) % width;
+          const y = (i * 61.27 + time * 0.03) % height;
+          ctx.fillStyle = "rgba(210, 255, 210, 0.035)";
+          ctx.fillRect(x, y, 1.4, 1.4);
+        }
+      }
+
+      function drawGround() {
+        const grd = ctx.createLinearGradient(0, height * 0.82, 0, height);
+        grd.addColorStop(0, "rgba(26, 38, 25, 0.5)");
+        grd.addColorStop(1, "rgba(18, 24, 17, 0.95)");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, height * 0.82, width, height * 0.18);
+      }
+
+      function drawSegments() {
+        ctx.lineCap = "round";
+
+        for (const s of segments) {
+          const x0 = s.parentX;
+          const y0 = s.parentY;
+          const x1 = x0 + Math.cos(s.angle) * s.length;
+          const y1 = y0 + Math.sin(s.angle) * s.length;
+
+          const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+          grad.addColorStop(0, `hsla(${(s.hue + 20) % 360}, 45%, 42%, 0.9)`);
+          grad.addColorStop(1, `hsla(${(s.hue + 40) % 360}, 65%, 60%, 0.95)`);
+
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = s.thickness;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+      }
+
+      function drawLeaves() {
+        for (const leaf of leaves) {
+          ctx.save();
+          ctx.translate(leaf.x, leaf.y);
+          ctx.rotate(leaf.angle);
+          ctx.fillStyle = `hsla(${leaf.hue}, 70%, 62%, ${Math.min(0.95, leaf.life / 260)})`;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, leaf.size * 1.3, leaf.size * 0.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function frame() {
+        updateGrowth();
+        drawBackground();
+        drawGround();
+        drawSegments();
+        drawLeaves();
+
+        requestAnimationFrame(frame);
+      }
+
+      function reset() {
+        segments.length = 0;
+        leaves.length = 0;
+        addSeed(width * 0.5, height * 0.86);
+      }
+
+      window.addEventListener("resize", () => {
+        resize();
+        reset();
+      });
+
+      window.addEventListener("click", (event) => {
+        addSeed(event.clientX, Math.max(height * 0.55, event.clientY));
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          addSeed(t.clientX, Math.max(height * 0.55, t.clientY));
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") reset();
+        if (key === "w") windEnabled = !windEnabled;
+      });
+
+      resize();
+      reset();
+      frame();
+    </script>
+  </body>
+</html>

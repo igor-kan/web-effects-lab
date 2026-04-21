@@ -24,6 +24,9 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Curl-noise incompressible flowfield
 - Stable-fluid smoke simulation variant
 - Volumetric light-shaft shader scene
+- Procedural stem-growth simulation
+- Falling sand cellular simulation
+- Water caustics shader effect
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -78,6 +81,9 @@ web-effects-lab/
     curl-noise-flowfield.html
     stable-fluid-smoke-lab.html
     volumetric-light-shafts.html
+    stem-growth-simulation.html
+    falling-sand-lab.html
+    water-caustics-shader.html
 ```
 
 ## Notes

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Water Caustics Shader</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #04101f;
+        color: #e8f7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 470px;
+        background: rgba(8, 20, 34, 0.6);
+        border: 1px solid rgba(120, 219, 255, 0.33);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #a5e9ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Water Caustics Shader</h1>
+      <p>Procedural underwater caustics with animated interference and pointer-driven ripples.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const gl = canvas.getContext("webgl");
+
+      if (!gl) {
+        alert("WebGL unavailable");
+        throw new Error("WebGL unavailable");
+      }
+
+      const vertexSource = `
+        attribute vec2 position;
+        varying vec2 vUv;
+
+        void main() {
+          vUv = position * 0.5 + 0.5;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
+        precision mediump float;
+        #endif
+
+        varying vec2 vUv;
+        uniform vec2 uResolution;
+        uniform vec2 uPointer;
+        uniform float uTime;
+
+        mat2 rot(float a) {
+          float s = sin(a);
+          float c = cos(a);
+          return mat2(c, -s, s, c);
+        }
+
+        float causticLayer(vec2 p, float t) {
+          p *= 3.6;
+          p += vec2(sin(t * 0.4), cos(t * 0.32)) * 0.8;
+
+          float v = 0.0;
+          float amp = 1.0;
+          for (int i = 0; i < 4; i++) {
+            p = rot(0.7 + float(i) * 0.35) * p;
+            vec2 q = vec2(sin(p.x + t * (0.6 + float(i) * 0.15)), sin(p.y - t * (0.5 + float(i) * 0.12)));
+            v += (1.0 / length(q + 0.25)) * amp;
+            amp *= 0.57;
+            p *= 1.38;
+          }
+
+          return v;
+        }
+
+        void main() {
+          vec2 uv = vUv;
+          vec2 p = uv;
+          p.x *= uResolution.x / uResolution.y;
+
+          float t = uTime;
+          float c1 = causticLayer(p + vec2(0.2, 0.0), t);
+          float c2 = causticLayer(p * 1.2 - vec2(0.1, 0.25), t * 1.17);
+
+          float caustics = smoothstep(2.4, 3.9, c1 + c2);
+
+          vec2 d = uv - uPointer;
+          float ripple = sin(60.0 * length(d) - t * 7.0) * exp(-length(d) * 8.0);
+          caustics += ripple * 0.22;
+
+          vec3 deep = vec3(0.02, 0.18, 0.33);
+          vec3 mid = vec3(0.02, 0.36, 0.55);
+          vec3 glow = vec3(0.66, 0.95, 1.0);
+
+          vec3 color = mix(deep, mid, uv.y);
+          color += glow * caustics * 0.72;
+
+          float spec = pow(caustics, 4.0) * 0.55;
+          color += spec;
+
+          float vignette = smoothstep(0.95, 0.2, distance(uv, vec2(0.5)));
+          color *= vignette + 0.28;
+
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `;
+
+      function compile(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(shader));
+        }
+        return shader;
+      }
+
+      const program = gl.createProgram();
+      gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
+      gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program));
+      }
+
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      const positionLoc = gl.getAttribLocation(program, "position");
+      const resLoc = gl.getUniformLocation(program, "uResolution");
+      const pointerLoc = gl.getUniformLocation(program, "uPointer");
+      const timeLoc = gl.getUniformLocation(program, "uTime");
+
+      const pointer = { x: 0.5, y: 0.5, tx: 0.5, ty: 0.5 };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.tx = clientX / window.innerWidth;
+        pointer.ty = 1 - clientY / window.innerHeight;
+      }
+
+      function render(now) {
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        gl.useProgram(program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.enableVertexAttribArray(positionLoc);
+        gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2f(resLoc, canvas.width, canvas.height);
+        gl.uniform2f(pointerLoc, pointer.x, pointer.y);
+        gl.uniform1f(timeLoc, now * 0.001);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(render);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousemove", (event) => setPointer(event.clientX, event.clientY));
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      resize();
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

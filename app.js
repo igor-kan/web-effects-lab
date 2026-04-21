@@ -219,6 +219,39 @@ const demos = [
     tags: ["2D", "light", "shader", "animation"],
     file: "demos/volumetric-light-shafts.html",
   },
+  {
+    id: "stem-growth-simulation",
+    title: "Stem Growth Simulation",
+    stack: "Procedural Botany",
+    level: "Advanced",
+    description:
+      "Rule-based plant growth with branching stems, light-seeking behavior, and leaf emergence.",
+    interaction: "Click to plant seeds, press R to reset, and press W to toggle wind.",
+    tags: ["2D", "stem", "growth", "simulation"],
+    file: "demos/stem-growth-simulation.html",
+  },
+  {
+    id: "falling-sand-lab",
+    title: "Falling Sand Lab",
+    stack: "Cellular Physics",
+    level: "Advanced",
+    description:
+      "Classic particle-cell simulation with sand, water, and stone interactions under gravity.",
+    interaction: "Drag to paint particles; keys 1/2/3/0 choose material, C clears.",
+    tags: ["2D", "physics", "simulation", "interactive"],
+    file: "demos/falling-sand-lab.html",
+  },
+  {
+    id: "water-caustics-shader",
+    title: "Water Caustics Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Animated underwater caustic interference with pointer-driven ripple perturbations.",
+    interaction: "Move pointer to disturb water-light patterns in real time.",
+    tags: ["2D", "water", "shader", "light"],
+    file: "demos/water-caustics-shader.html",
+  },
 ];
 
 const state = {

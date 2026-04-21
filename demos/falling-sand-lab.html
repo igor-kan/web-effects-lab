@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Falling Sand Lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #10131a;
+        color: #edf5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 520px;
+        background: rgba(15, 20, 32, 0.62);
+        border: 1px solid rgba(169, 199, 255, 0.32);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9bc8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Falling Sand Lab</h1>
+      <p>Interactive cellular simulation. Drag to paint material particles.</p>
+      <p>Keys: <strong>1</strong> Sand, <strong>2</strong> Water, <strong>3</strong> Stone, <strong>0</strong> Eraser, <strong>C</strong> Clear.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const GRID_W = 260;
+      const GRID_H = 170;
+      const SIZE = GRID_W * GRID_H;
+
+      const EMPTY = 0;
+      const SAND = 1;
+      const WATER = 2;
+      const STONE = 3;
+
+      const grid = new Uint8Array(SIZE);
+      const image = new ImageData(GRID_W, GRID_H);
+      const lowCanvas = document.createElement("canvas");
+      lowCanvas.width = GRID_W;
+      lowCanvas.height = GRID_H;
+      const lowCtx = lowCanvas.getContext("2d", { alpha: false });
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const pointer = { x: 0, y: 0, down: false };
+      let brush = SAND;
+
+      function idx(x, y) {
+        return x + y * GRID_W;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.x = clamp(Math.floor((clientX / width) * GRID_W), 0, GRID_W - 1);
+        pointer.y = clamp(Math.floor((clientY / height) * GRID_H), 0, GRID_H - 1);
+      }
+
+      function paint() {
+        if (!pointer.down) return;
+
+        const radius = 4;
+        for (let oy = -radius; oy <= radius; oy += 1) {
+          for (let ox = -radius; ox <= radius; ox += 1) {
+            if (ox * ox + oy * oy > radius * radius) continue;
+            const x = clamp(pointer.x + ox, 0, GRID_W - 1);
+            const y = clamp(pointer.y + oy, 0, GRID_H - 1);
+            grid[idx(x, y)] = brush;
+          }
+        }
+      }
+
+      function swap(i1, i2) {
+        const t = grid[i1];
+        grid[i1] = grid[i2];
+        grid[i2] = t;
+      }
+
+      function updateSand(x, y) {
+        const i = idx(x, y);
+        const below = idx(x, y + 1);
+
+        if (y + 1 < GRID_H && (grid[below] === EMPTY || grid[below] === WATER)) {
+          swap(i, below);
+          return;
+        }
+
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        for (const d of [dir, -dir]) {
+          const nx = x + d;
+          const ny = y + 1;
+          if (nx < 0 || nx >= GRID_W || ny >= GRID_H) continue;
+          const ni = idx(nx, ny);
+          if (grid[ni] === EMPTY || grid[ni] === WATER) {
+            swap(i, ni);
+            return;
+          }
+        }
+      }
+
+      function updateWater(x, y) {
+        const i = idx(x, y);
+        const downY = y + 1;
+        if (downY < GRID_H && grid[idx(x, downY)] === EMPTY) {
+          swap(i, idx(x, downY));
+          return;
+        }
+
+        const dir = Math.random() < 0.5 ? -1 : 1;
+
+        for (const d of [dir, -dir]) {
+          const nx = x + d;
+          if (nx < 0 || nx >= GRID_W) continue;
+          const ni = idx(nx, y);
+          if (grid[ni] === EMPTY) {
+            swap(i, ni);
+            return;
+          }
+        }
+
+        for (const d of [dir, -dir]) {
+          const nx = x + d;
+          const ny = y + 1;
+          if (nx < 0 || nx >= GRID_W || ny >= GRID_H) continue;
+          const ni = idx(nx, ny);
+          if (grid[ni] === EMPTY) {
+            swap(i, ni);
+            return;
+          }
+        }
+      }
+
+      function simulate() {
+        for (let y = GRID_H - 2; y >= 0; y -= 1) {
+          const leftToRight = Math.random() < 0.5;
+          if (leftToRight) {
+            for (let x = 0; x < GRID_W; x += 1) {
+              const cell = grid[idx(x, y)];
+              if (cell === SAND) updateSand(x, y);
+              else if (cell === WATER) updateWater(x, y);
+            }
+          } else {
+            for (let x = GRID_W - 1; x >= 0; x -= 1) {
+              const cell = grid[idx(x, y)];
+              if (cell === SAND) updateSand(x, y);
+              else if (cell === WATER) updateWater(x, y);
+            }
+          }
+        }
+      }
+
+      function colorFor(cell, x, y) {
+        if (cell === EMPTY) {
+          const shade = 20 + ((y / GRID_H) * 25) | 0;
+          return [shade, shade + 5, shade + 12, 255];
+        }
+        if (cell === SAND) {
+          const grain = (Math.sin(x * 0.6 + y * 1.2) * 0.5 + 0.5) * 22;
+          return [210 + grain, 180 + grain * 0.7, 96 + grain * 0.3, 255];
+        }
+        if (cell === WATER) {
+          const wave = (Math.sin(x * 0.35 + y * 0.85) * 0.5 + 0.5) * 18;
+          return [40 + wave * 0.4, 120 + wave, 215 + wave, 255];
+        }
+        return [130, 136, 150, 255];
+      }
+
+      function draw() {
+        const px = image.data;
+        for (let y = 0; y < GRID_H; y += 1) {
+          for (let x = 0; x < GRID_W; x += 1) {
+            const i = idx(x, y);
+            const p = i * 4;
+            const [r, g, b, a] = colorFor(grid[i], x, y);
+            px[p] = r;
+            px[p + 1] = g;
+            px[p + 2] = b;
+            px[p + 3] = a;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(lowCanvas, 0, 0, width, height);
+      }
+
+      function frame() {
+        paint();
+        simulate();
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function clearAll() {
+        grid.fill(EMPTY);
+
+        for (let x = 0; x < GRID_W; x += 1) {
+          grid[idx(x, GRID_H - 1)] = STONE;
+        }
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        setPointer(event.clientX, event.clientY);
+      });
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          pointer.down = true;
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key;
+        if (key === "1") brush = SAND;
+        if (key === "2") brush = WATER;
+        if (key === "3") brush = STONE;
+        if (key === "0") brush = EMPTY;
+        if (key.toLowerCase() === "c") clearAll();
+      });
+
+      resize();
+      clearAll();
+      frame();
+    </script>
+  </body>
+</html>

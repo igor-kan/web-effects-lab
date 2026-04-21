@@ -38,6 +38,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Plasma arc reactor lightning field
 - Metaball contour marching-squares lab
 - Hyperspace starfield warp tunnel
+- Black hole lensing space distortion
+- Electrostatic field sandbox simulation
+- 3D Moebius ribbon geometry lab
+- Procedural nebula noise clouds
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -121,6 +125,10 @@ web-effects-lab/
     plasma-arc-reactor.html
     metaball-contour-lab.html
     hyperspace-starfield.html
+    black-hole-lensing.html
+    electrostatic-field-sandbox.html
+    moebius-ribbon-lab.html
+    nebula-noise-clouds.html
 ```
 
 ## Notes

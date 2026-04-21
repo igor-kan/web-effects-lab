@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Electrostatic Field Sandbox</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060b14;
+        color: #ecf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(9, 17, 31, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Electrostatic Field Sandbox</h1>
+      <p>
+        Charged poles drive tracer particles through a live electrostatic vector field.
+      </p>
+      <p>Click for + charge, Shift+click (or right click) for - charge. Press <strong>F</strong> flip, <strong>X</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let prevTime = performance.now();
+
+      const particles = [];
+      const PARTICLE_COUNT = 1400;
+
+      let charges = [];
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function spawnParticle(p) {
+        p.x = Math.random() * width;
+        p.y = Math.random() * height;
+        p.vx = (Math.random() * 2 - 1) * 0.3;
+        p.vy = (Math.random() * 2 - 1) * 0.3;
+        p.life = 0.2 + Math.random() * 1;
+      }
+
+      function resetParticles() {
+        particles.length = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+          const p = {};
+          spawnParticle(p);
+          particles.push(p);
+        }
+      }
+
+      function resetCharges() {
+        charges = [
+          { x: width * 0.35, y: height * 0.45, q: 1 },
+          { x: width * 0.65, y: height * 0.55, q: -1 },
+          { x: width * 0.5, y: height * 0.3, q: 0.8 },
+        ];
+      }
+
+      function addCharge(x, y, q) {
+        charges.push({ x, y, q });
+        if (charges.length > 12) {
+          charges.shift();
+        }
+      }
+
+      function fieldAt(x, y) {
+        let fx = 0;
+        let fy = 0;
+
+        for (const c of charges) {
+          const dx = x - c.x;
+          const dy = y - c.y;
+          const d2 = dx * dx + dy * dy + 70;
+          const inv = 1 / Math.pow(d2, 1.5);
+          const force = c.q * 17000 * inv;
+          fx += dx * force;
+          fy += dy * force;
+        }
+
+        return [fx, fy];
+      }
+
+      function nearestChargeSign(x, y) {
+        let best = Infinity;
+        let sign = 1;
+        for (const c of charges) {
+          const d = (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y);
+          if (d < best) {
+            best = d;
+            sign = c.q >= 0 ? 1 : -1;
+          }
+        }
+        return sign;
+      }
+
+      function updateParticle(p, dt) {
+        const ox = p.x;
+        const oy = p.y;
+
+        const [fx, fy] = fieldAt(p.x, p.y);
+
+        p.vx += fx * dt;
+        p.vy += fy * dt;
+
+        p.vx *= 0.985;
+        p.vy *= 0.985;
+
+        p.x += p.vx * dt * 60;
+        p.y += p.vy * dt * 60;
+
+        p.life -= dt * 0.12;
+
+        if (p.x < -10 || p.x > width + 10 || p.y < -10 || p.y > height + 10 || p.life <= 0) {
+          spawnParticle(p);
+        }
+
+        const speed = Math.hypot(p.vx, p.vy);
+        const alpha = Math.min(0.9, 0.08 + speed * 0.24);
+        const sign = nearestChargeSign(p.x, p.y);
+
+        if (sign > 0) {
+          ctx.strokeStyle = `rgba(255, 170, 86, ${alpha})`;
+        } else {
+          ctx.strokeStyle = `rgba(97, 201, 255, ${alpha})`;
+        }
+
+        ctx.lineWidth = 0.6 + Math.min(1.7, speed * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+
+      function drawCharges() {
+        for (const c of charges) {
+          const radius = 9 + Math.abs(c.q) * 4;
+          const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, radius * 2.2);
+          if (c.q >= 0) {
+            grad.addColorStop(0, "rgba(255, 230, 170, 0.95)");
+            grad.addColorStop(0.5, "rgba(255, 150, 56, 0.45)");
+            grad.addColorStop(1, "rgba(255, 120, 36, 0)");
+          } else {
+            grad.addColorStop(0, "rgba(202, 245, 255, 0.96)");
+            grad.addColorStop(0.5, "rgba(88, 190, 255, 0.48)");
+            grad.addColorStop(1, "rgba(58, 160, 255, 0)");
+          }
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, radius * 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = c.q >= 0 ? "#ffb164" : "#7bd4ff";
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(9, 20, 32, 0.95)";
+          ctx.font = "bold 14px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(c.q >= 0 ? "+" : "-", c.x, c.y + 0.5);
+        }
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.05, (now - prevTime) * 0.001);
+        prevTime = now;
+
+        ctx.fillStyle = "rgba(6, 11, 20, 0.15)";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "rgba(124, 220, 255, 0.6)";
+
+        for (const p of particles) {
+          updateParticle(p, dt);
+        }
+
+        ctx.shadowBlur = 0;
+        drawCharges();
+
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("click", (event) => {
+        const isNegative = event.shiftKey;
+        addCharge(event.clientX, event.clientY, isNegative ? -1 : 1);
+      });
+
+      window.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        addCharge(event.clientX, event.clientY, -1);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "f") {
+          for (const c of charges) {
+            c.q *= -1;
+          }
+        }
+        if (key === "x") {
+          resetCharges();
+          resetParticles();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        resize();
+      });
+
+      resize();
+      resetCharges();
+      resetParticles();
+      ctx.fillStyle = "#060b14";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

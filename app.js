@@ -373,6 +373,50 @@ const demos = [
     tags: ["3D", "space", "particles", "interactive"],
     file: "demos/hyperspace-starfield.html",
   },
+  {
+    id: "black-hole-lensing",
+    title: "Black Hole Lensing",
+    stack: "2.5D Relativity FX",
+    level: "Advanced",
+    description:
+      "Perspective starfield with gravitational-style lensing, accretion glow, and steerable event horizon.",
+    interaction: "Move pointer to steer, wheel changes mass, A toggles drift, and R resets stars.",
+    tags: ["3D", "space", "light", "interactive"],
+    file: "demos/black-hole-lensing.html",
+  },
+  {
+    id: "electrostatic-field-sandbox",
+    title: "Electrostatic Field Sandbox",
+    stack: "Particle Field Simulation",
+    level: "Advanced",
+    description:
+      "Live electric-field playground where charged poles shape tracer streamlines and force flows.",
+    interaction: "Click for + charge, Shift+click or right-click for -, F flips polarity, X resets.",
+    tags: ["2D", "particles", "field", "simulation"],
+    file: "demos/electrostatic-field-sandbox.html",
+  },
+  {
+    id: "moebius-ribbon-lab",
+    title: "Moebius Ribbon Lab",
+    stack: "Three.js Geometry",
+    level: "Advanced",
+    description:
+      "Procedural Moebius strip with dynamic lighting, floating sparks, and orbit-style camera controls.",
+    interaction: "Drag to orbit, wheel to zoom, W for wireframe, A auto-spin, and R pulse burst.",
+    tags: ["3D", "model", "geometry", "interactive"],
+    file: "demos/moebius-ribbon-lab.html",
+  },
+  {
+    id: "nebula-noise-clouds",
+    title: "Nebula Noise Clouds",
+    stack: "Procedural Noise Field",
+    level: "Advanced",
+    description:
+      "Layered fractal-style cloud field with swirling turbulence and cinematic nebula palette shifts.",
+    interaction: "Move pointer to stir flow, C cycles palette, P pauses, and R resets drift seed.",
+    tags: ["2D", "clouds", "noise", "animation"],
+    file: "demos/nebula-noise-clouds.html",
+  },
 ];
 
 const state = {

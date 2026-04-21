@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nebula Noise Clouds</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060913;
+        color: #ebf6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 540px;
+        background: rgba(8, 15, 30, 0.62);
+        border: 1px solid rgba(145, 211, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9ed7ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Nebula Noise Clouds</h1>
+      <p>
+        Procedural animated nebula generated from layered trigonometric noise and flow warping.
+      </p>
+      <p>Move pointer to stir turbulence. Press <strong>C</strong> palette, <strong>P</strong> pause, <strong>R</strong> reset drift.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const GRID_W = 280;
+      const GRID_H = 170;
+      const low = document.createElement("canvas");
+      low.width = GRID_W;
+      low.height = GRID_H;
+      const lowCtx = low.getContext("2d", { alpha: false });
+      const image = lowCtx.createImageData(GRID_W, GRID_H);
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let time = 0;
+      let paused = false;
+      let palette = 0;
+      let driftSeed = Math.random() * 1000;
+
+      const pointer = {
+        tx: 0.5,
+        ty: 0.5,
+        x: 0.5,
+        y: 0.5,
+      };
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function fract(x) {
+        return x - Math.floor(x);
+      }
+
+      function noiseish(x, y, t) {
+        // Fast pseudo-noise from chained trig fields for browser-friendly volumetric style.
+        const a = Math.sin((x + t * 0.07) * 5.3 + Math.cos((y - t * 0.04) * 4.8));
+        const b = Math.cos((y - t * 0.09) * 6.1 + Math.sin((x + t * 0.05) * 3.7));
+        const c = Math.sin((x + y) * 7.2 + t * 0.11);
+        return (a + b + c) / 3;
+      }
+
+      function fbm(x, y, t) {
+        let sum = 0;
+        let amp = 0.55;
+        let freq = 1;
+        for (let i = 0; i < 4; i += 1) {
+          sum += amp * noiseish(x * freq, y * freq, t * (1 + i * 0.27));
+          freq *= 1.92;
+          amp *= 0.52;
+        }
+        return sum;
+      }
+
+      function colorize(v, glow) {
+        if (palette === 0) {
+          return [40 + v * 130 + glow * 65, 20 + v * 95, 70 + v * 170 + glow * 70];
+        }
+        if (palette === 1) {
+          return [25 + v * 80, 55 + v * 150 + glow * 70, 95 + v * 150 + glow * 35];
+        }
+        if (palette === 2) {
+          return [70 + v * 160 + glow * 60, 30 + v * 85, 30 + v * 95];
+        }
+        return [35 + v * 70, 35 + v * 150 + glow * 90, 85 + v * 170 + glow * 55];
+      }
+
+      function drawNebula() {
+        const px = image.data;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        const warpX = (pointer.x - 0.5) * 1.8;
+        const warpY = (pointer.y - 0.5) * 1.8;
+
+        for (let y = 0; y < GRID_H; y += 1) {
+          for (let x = 0; x < GRID_W; x += 1) {
+            const uvx = x / GRID_W - 0.5;
+            const uvy = y / GRID_H - 0.5;
+
+            const r = Math.hypot(uvx, uvy);
+            const swirl = Math.atan2(uvy, uvx) + time * 0.08 + r * 8.5;
+
+            const qx = uvx * 2.4 + Math.cos(swirl) * 0.24 + warpX * 0.2;
+            const qy = uvy * 2.2 + Math.sin(swirl) * 0.22 + warpY * 0.2;
+
+            const n1 = fbm(qx + driftSeed * 0.001, qy - driftSeed * 0.0012, time);
+            const n2 = fbm(qx * 1.5 - 0.2, qy * 1.4 + 0.3, time * 1.24);
+
+            const v = clamp((n1 * 0.62 + n2 * 0.38) * 0.5 + 0.5, 0, 1);
+            const core = clamp(1 - r * 1.65, 0, 1);
+            const glow = clamp(Math.pow(core, 2.2) + v * 0.4, 0, 1);
+
+            const [rr, gg, bb] = colorize(v, glow);
+
+            const i = (x + y * GRID_W) * 4;
+            px[i] = clamp(rr, 0, 255);
+            px[i + 1] = clamp(gg, 0, 255);
+            px[i + 2] = clamp(bb, 0, 255);
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+      }
+
+      function frame() {
+        if (!paused) {
+          time += 0.016;
+        }
+
+        drawNebula();
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(low, 0, 0, width, height);
+
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("mousemove", (event) => {
+        pointer.tx = event.clientX / width;
+        pointer.ty = event.clientY / height;
+      });
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          pointer.tx = t.clientX / width;
+          pointer.ty = t.clientY / height;
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "c") {
+          palette = (palette + 1) % 4;
+        }
+        if (key === "p") {
+          paused = !paused;
+        }
+        if (key === "r") {
+          driftSeed = Math.random() * 1000;
+        }
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      frame();
+    </script>
+  </body>
+</html>

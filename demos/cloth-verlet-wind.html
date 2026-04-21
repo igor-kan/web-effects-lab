@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloth Verlet Wind</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(180deg, #cbefff 0%, #f3f9ff 38%, #eef6fe 100%);
+        color: #18394a;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 430px;
+        background: rgba(247, 253, 255, 0.84);
+        border: 1px solid rgba(48, 92, 118, 0.22);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #0e6f92;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Cloth Verlet Wind</h1>
+      <p>Drag cloth points to tug the sheet. Press <strong>Space</strong> to reset cloth rig.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const COLS = 38;
+      const ROWS = 24;
+      const SPACING = 18;
+      const GRAVITY = 0.22;
+      const ITERATIONS = 7;
+
+      let points = [];
+      let links = [];
+
+      const pointer = {
+        down: false,
+        x: width * 0.5,
+        y: height * 0.45,
+        radius: 40,
+      };
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function createCloth() {
+        points = [];
+        links = [];
+
+        const startX = width * 0.5 - (COLS - 1) * SPACING * 0.5;
+        const startY = Math.max(80, height * 0.14);
+
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            const px = startX + x * SPACING;
+            const py = startY + y * SPACING;
+
+            const pinned = y === 0 && (x % 2 === 0 || x === 0 || x === COLS - 1);
+
+            points.push({
+              x: px,
+              y: py,
+              px,
+              py,
+              pinned,
+            });
+          }
+        }
+
+        const index = (x, y) => y * COLS + x;
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            if (x < COLS - 1) {
+              links.push({ a: index(x, y), b: index(x + 1, y), len: SPACING });
+            }
+            if (y < ROWS - 1) {
+              links.push({ a: index(x, y), b: index(x, y + 1), len: SPACING });
+            }
+            if (x < COLS - 1 && y < ROWS - 1) {
+              links.push({ a: index(x, y), b: index(x + 1, y + 1), len: SPACING * 1.414 });
+            }
+            if (x > 0 && y < ROWS - 1) {
+              links.push({ a: index(x, y), b: index(x - 1, y + 1), len: SPACING * 1.414 });
+            }
+          }
+        }
+      }
+
+      function simulate(time) {
+        const windStrength = 0.08 + Math.sin(time * 0.0012) * 0.06;
+
+        for (const p of points) {
+          if (p.pinned) {
+            p.x += Math.sin(time * 0.001 + p.y * 0.014) * 0.05;
+            p.y += Math.cos(time * 0.0013 + p.x * 0.01) * 0.02;
+            p.px = p.x;
+            p.py = p.y;
+            continue;
+          }
+
+          const vx = (p.x - p.px) * 0.992;
+          const vy = (p.y - p.py) * 0.992;
+          p.px = p.x;
+          p.py = p.y;
+
+          p.x += vx + windStrength * (0.4 + Math.sin(p.y * 0.02 + time * 0.002));
+          p.y += vy + GRAVITY;
+
+          if (p.x < 8) p.x = 8;
+          if (p.x > width - 8) p.x = width - 8;
+          if (p.y > height - 8) p.y = height - 8;
+        }
+
+        if (pointer.down) {
+          for (const p of points) {
+            const dx = p.x - pointer.x;
+            const dy = p.y - pointer.y;
+            const d = Math.hypot(dx, dy);
+            if (d < pointer.radius) {
+              p.x = pointer.x;
+              p.y = pointer.y;
+            }
+          }
+        }
+
+        for (let i = 0; i < ITERATIONS; i += 1) {
+          for (const link of links) {
+            const a = points[link.a];
+            const b = points[link.b];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const diff = (dist - link.len) / dist;
+
+            const adjustX = dx * 0.5 * diff;
+            const adjustY = dy * 0.5 * diff;
+
+            if (!a.pinned) {
+              a.x += adjustX;
+              a.y += adjustY;
+            }
+            if (!b.pinned) {
+              b.x -= adjustX;
+              b.y -= adjustY;
+            }
+          }
+        }
+      }
+
+      function draw(time) {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#c4ebff");
+        sky.addColorStop(0.45, "#ebf7ff");
+        sky.addColorStop(1, "#e8f2fc");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        for (let y = 0; y < 12; y += 1) {
+          const x = ((time * 0.02 + y * 160) % (width + 260)) - 130;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+          ctx.beginPath();
+          ctx.ellipse(x, 70 + y * 16, 72, 18, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = "rgba(35, 115, 150, 0.26)";
+        ctx.lineWidth = 1;
+        for (const link of links) {
+          const a = points[link.a];
+          const b = points[link.b];
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+
+        for (let y = 0; y < ROWS - 1; y += 1) {
+          for (let x = 0; x < COLS - 1; x += 1) {
+            const i = y * COLS + x;
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const p3 = points[i + COLS + 1];
+            const p4 = points[i + COLS];
+
+            const shade = 0.48 + ((y / ROWS) * 0.34 + Math.sin(time * 0.0018 + x * 0.4) * 0.05);
+            ctx.fillStyle = `hsla(${192 + y * 0.4}, 66%, ${62 + shade * 18}%, 0.45)`;
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+
+        for (const p of points) {
+          if (!p.pinned) continue;
+          ctx.fillStyle = "#1d6c8d";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function frame(time) {
+        simulate(time);
+        draw(time);
+        requestAnimationFrame(frame);
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.x = clientX;
+        pointer.y = clientY;
+      }
+
+      window.addEventListener("resize", () => {
+        resize();
+        createCloth();
+      });
+
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        setPointer(event.clientX, event.clientY);
+      });
+
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          pointer.down = true;
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.code === "Space") {
+          createCloth();
+        }
+      });
+
+      resize();
+      createCloth();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

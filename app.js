@@ -87,6 +87,61 @@ const demos = [
     tags: ["2D", "waves", "light", "animation"],
     file: "demos/aurora-ribbons.html",
   },
+  {
+    id: "reactive-metaballs-webgl",
+    title: "Reactive Metaballs Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "GPU-rendered metaball field with physically inspired lighting and real-time pointer influence.",
+    interaction: "Move pointer to pull and shape the liquid blob field.",
+    tags: ["2D", "shader", "webgl", "interactive"],
+    file: "demos/reactive-metaballs-webgl.html",
+  },
+  {
+    id: "raymarch-tunnel",
+    title: "Raymarch Tunnel",
+    stack: "WebGL Raymarching",
+    level: "Advanced",
+    description:
+      "Signed-distance-field tunnel renderer with animated geometry and volumetric-style glow.",
+    interaction: "Move pointer to steer camera orientation through the tunnel.",
+    tags: ["3D", "shader", "raymarch", "interactive"],
+    file: "demos/raymarch-tunnel.html",
+  },
+  {
+    id: "cloth-verlet-wind",
+    title: "Cloth Verlet Wind",
+    stack: "Canvas Physics",
+    level: "Advanced",
+    description:
+      "Constraint-based cloth simulation with verlet integration, wind forces, and direct manipulation.",
+    interaction: "Drag to pull cloth points; press space to reset the cloth.",
+    tags: ["2D", "physics", "simulation", "interactive"],
+    file: "demos/cloth-verlet-wind.html",
+  },
+  {
+    id: "procedural-city-drive",
+    title: "Procedural City Drive",
+    stack: "Three.js",
+    level: "Advanced",
+    description:
+      "Large procedural neon city scene with moving traffic lights and first-person street navigation.",
+    interaction: "WASD to move, hold mouse and drag to look around.",
+    tags: ["3D", "environment", "city", "interactive"],
+    file: "demos/procedural-city-drive.html",
+  },
+  {
+    id: "holographic-relief-model",
+    title: "Holographic Relief Model",
+    stack: "Three.js + GLSL",
+    level: "Advanced",
+    description:
+      "Shader-deformed 3D relief object with scanline holographic shading and orbit inspection.",
+    interaction: "Drag to orbit and inspect the animated model surface.",
+    tags: ["3D", "model", "shader", "interactive"],
+    file: "demos/holographic-relief-model.html",
+  },
 ];
 
 const state = {

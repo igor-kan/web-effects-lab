@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reactive Metaballs Shader</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #040712;
+        color: #eaf6ff;
+        font-family: "Trebuchet MS", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 410px;
+        background: rgba(6, 14, 27, 0.58);
+        border: 1px solid rgba(156, 227, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+        opacity: 0.92;
+      }
+
+      .home {
+        color: #9de3ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Reactive Metaballs Shader</h1>
+      <p>GPU-driven signed field metaballs with dynamic lighting and pointer interaction.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const gl = canvas.getContext("webgl");
+
+      if (!gl) {
+        alert("WebGL is not available in this browser.");
+        throw new Error("WebGL unavailable");
+      }
+
+      const vertexSource = `
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+          vUv = position * 0.5 + 0.5;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        precision mediump float;
+
+        varying vec2 vUv;
+
+        uniform vec2 uResolution;
+        uniform vec2 uMouse;
+        uniform float uTime;
+
+        float field(vec2 p, out vec2 grad) {
+          float sum = 0.0;
+          grad = vec2(0.0);
+
+          for (int i = 0; i < 7; i++) {
+            float fi = float(i);
+            vec2 center = vec2(
+              0.5 + sin(uTime * (0.35 + fi * 0.04) + fi * 1.7) * (0.22 + fi * 0.015),
+              0.5 + cos(uTime * (0.31 + fi * 0.05) + fi * 1.1) * (0.2 + fi * 0.013)
+            );
+            vec2 d = p - center;
+            float inv = 0.008 / max(dot(d, d), 0.00025);
+            sum += inv;
+            grad += -2.0 * 0.008 * d / pow(max(dot(d, d), 0.00025), 2.0);
+          }
+
+          vec2 md = p - uMouse;
+          float mInv = 0.02 / max(dot(md, md), 0.0003);
+          sum += mInv;
+          grad += -2.0 * 0.02 * md / pow(max(dot(md, md), 0.0003), 2.0);
+
+          return sum;
+        }
+
+        void main() {
+          vec2 uv = vUv;
+          vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
+          vec2 p = (uv - 0.5) * aspect + 0.5;
+
+          vec2 grad;
+          float f = field(p, grad);
+
+          float surface = smoothstep(1.35, 1.52, f);
+          float core = smoothstep(1.8, 2.45, f);
+          float edge = smoothstep(1.0, 1.35, f) - surface;
+
+          vec3 n = normalize(vec3(-grad * 0.004, 1.0));
+          vec3 l = normalize(vec3(0.45, 0.75, 0.65));
+          float diff = max(dot(n, l), 0.0);
+          float fres = pow(1.0 - max(dot(n, vec3(0.0, 0.0, 1.0)), 0.0), 2.0);
+
+          vec3 bg = mix(vec3(0.02, 0.035, 0.09), vec3(0.04, 0.10, 0.18), uv.y);
+          bg += 0.03 * sin(vec3(1.0, 1.7, 2.4) * (uTime * 0.7 + uv.xyx * 6.0));
+
+          vec3 liquid = mix(vec3(0.07, 0.54, 0.95), vec3(0.12, 0.95, 0.78), core);
+          liquid *= 0.35 + diff * 0.9;
+          liquid += fres * vec3(0.5, 0.9, 1.2);
+
+          vec3 color = bg;
+          color = mix(color, liquid, surface);
+          color += edge * vec3(0.35, 0.9, 1.0) * 0.5;
+
+          float vignette = smoothstep(1.2, 0.2, distance(uv, vec2(0.5)));
+          color *= vignette + 0.35;
+
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `;
+
+      function compile(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(shader));
+        }
+
+        return shader;
+      }
+
+      const program = gl.createProgram();
+      const vertex = compile(gl.VERTEX_SHADER, vertexSource);
+      const fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
+
+      gl.attachShader(program, vertex);
+      gl.attachShader(program, fragment);
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program));
+      }
+
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      const positionLoc = gl.getAttribLocation(program, "position");
+      const resLoc = gl.getUniformLocation(program, "uResolution");
+      const mouseLoc = gl.getUniformLocation(program, "uMouse");
+      const timeLoc = gl.getUniformLocation(program, "uTime");
+
+      const pointer = { x: 0.5, y: 0.5 };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      function onPointer(clientX, clientY) {
+        pointer.x = clientX / window.innerWidth;
+        pointer.y = 1 - clientY / window.innerHeight;
+      }
+
+      function render(time) {
+        gl.useProgram(program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.enableVertexAttribArray(positionLoc);
+        gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2f(resLoc, canvas.width, canvas.height);
+        gl.uniform2f(mouseLoc, pointer.x, pointer.y);
+        gl.uniform1f(timeLoc, time * 0.001);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(render);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousemove", (event) => onPointer(event.clientX, event.clientY));
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          onPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      resize();
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

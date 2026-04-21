@@ -12,6 +12,11 @@ A standalone website repository packed with interactive, downloadable visual eff
 - 3D procedural model showcase (Three.js)
 - 3D low-poly environment fly scene (Three.js)
 - Aurora wave ribbons and layered animation graphics
+- GPU metaballs shader field (WebGL)
+- SDF raymarched tunnel shader (WebGL)
+- Verlet cloth physics with wind and user interaction
+- Procedural neon city drive scene (Three.js)
+- Holographic shader-relief model (Three.js + GLSL)
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -25,6 +30,11 @@ python3 -m http.server 5500
 ```
 
 Then open: `http://localhost:5500`
+
+## Deployment (GitHub Pages)
+
+This repository includes a workflow at `.github/workflows/deploy-pages.yml`.
+Every push to `main` automatically deploys the static site to GitHub Pages.
 
 ## Download workflow
 
@@ -49,6 +59,11 @@ web-effects-lab/
     orbital-model-lab.html
     forest-flight.html
     aurora-ribbons.html
+    reactive-metaballs-webgl.html
+    raymarch-tunnel.html
+    cloth-verlet-wind.html
+    procedural-city-drive.html
+    holographic-relief-model.html
 ```
 
 ## Notes

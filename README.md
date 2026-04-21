@@ -46,6 +46,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Polar vortex flow advection demo
 - 3D wireframe wormhole tunnel
 - Prism caustic interference effect
+- Realistic smoke plume advection
+- Volumetric fire column simulation
+- Wildfire smoke front spread model
+- Ember fog turbulence field
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -137,6 +141,10 @@ web-effects-lab/
     polar-vortex-flow.html
     wireframe-wormhole-3d.html
     prism-caustic-interference.html
+    realistic-smoke-plume.html
+    volumetric-fire-column.html
+    wildfire-smoke-front.html
+    ember-fog-turbulence.html
 ```
 
 ## Notes

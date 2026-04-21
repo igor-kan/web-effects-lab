@@ -461,6 +461,50 @@ const demos = [
     tags: ["2D", "light", "caustics", "animation"],
     file: "demos/prism-caustic-interference.html",
   },
+  {
+    id: "realistic-smoke-plume",
+    title: "Realistic Smoke Plume",
+    stack: "Grid Advection",
+    level: "Advanced",
+    description:
+      "Buoyant smoke advection with thermal lift, turbulence, cooling, and wind-driven plume shaping.",
+    interaction: "Drag to inject smoke, W toggles wind, D toggles dense mode, and R resets.",
+    tags: ["2D", "smoke", "simulation", "interactive"],
+    file: "demos/realistic-smoke-plume.html",
+  },
+  {
+    id: "volumetric-fire-column",
+    title: "Volumetric Fire Column",
+    stack: "Particle Plume System",
+    level: "Advanced",
+    description:
+      "Layered flame, ember, and soot particle system with turbulent updraft and cinematic volumetric look.",
+    interaction: "Move pointer to steer nozzle, click burst, W cycles wind, and R resets.",
+    tags: ["2D", "fire", "smoke", "simulation"],
+    file: "demos/volumetric-fire-column.html",
+  },
+  {
+    id: "wildfire-smoke-front",
+    title: "Wildfire Smoke Front",
+    stack: "Cellular Spread Model",
+    level: "Advanced",
+    description:
+      "Wind-aware wildfire spread simulation with fuel burn-down, ignition fronts, and moving smoke cover.",
+    interaction: "Click/drag to ignite terrain, W changes wind, P pauses, and R resets.",
+    tags: ["2D", "fire", "smoke", "simulation"],
+    file: "demos/wildfire-smoke-front.html",
+  },
+  {
+    id: "ember-fog-turbulence",
+    title: "Ember Fog Turbulence",
+    stack: "Turbulent Particle Field",
+    level: "Advanced",
+    description:
+      "Atmospheric fog simulation with turbulence-driven advection and glowing ember particulates.",
+    interaction: "Move pointer to stir field, click ember burst, G toggles glow, and R resets.",
+    tags: ["2D", "smoke", "embers", "interactive"],
+    file: "demos/ember-fog-turbulence.html",
+  },
 ];
 
 const state = {

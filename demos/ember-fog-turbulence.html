@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ember Fog Turbulence</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060910;
+        color: #eff8ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(8, 16, 30, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Ember Fog Turbulence</h1>
+      <p>
+        Dense drifting fog with embedded ember particles driven by turbulent flow and pointer vortices.
+      </p>
+      <p>Move pointer to stir field. Click ember burst. <strong>G</strong> glow toggle, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let prev = performance.now();
+      let time = 0;
+
+      const fogParticles = [];
+      const emberParticles = [];
+
+      const FOG_COUNT = 1900;
+      const EMBER_COUNT = 520;
+
+      let glow = true;
+      let burst = 0;
+
+      const pointer = {
+        x: width * 0.5,
+        y: height * 0.5,
+        tx: width * 0.5,
+        ty: height * 0.5,
+      };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function spawnFog(p) {
+        p.x = Math.random() * width;
+        p.y = Math.random() * height;
+        p.vx = (Math.random() * 2 - 1) * 0.6;
+        p.vy = (Math.random() * 2 - 1) * 0.6;
+        p.life = 0.5 + Math.random() * 1.2;
+        p.size = 8 + Math.random() * 16;
+        p.alpha = 0.02 + Math.random() * 0.05;
+      }
+
+      function spawnEmber(p) {
+        p.x = Math.random() * width;
+        p.y = height * (0.55 + Math.random() * 0.4);
+        p.vx = (Math.random() * 2 - 1) * 1.6;
+        p.vy = -0.8 - Math.random() * 2;
+        p.life = 0.35 + Math.random() * 0.8;
+        p.size = 1 + Math.random() * 2.5;
+      }
+
+      function reset() {
+        fogParticles.length = 0;
+        emberParticles.length = 0;
+
+        for (let i = 0; i < FOG_COUNT; i += 1) {
+          const p = {};
+          spawnFog(p);
+          fogParticles.push(p);
+        }
+
+        for (let i = 0; i < EMBER_COUNT; i += 1) {
+          const p = {};
+          spawnEmber(p);
+          emberParticles.push(p);
+        }
+      }
+
+      function flowField(x, y, t) {
+        const nx = x * 0.006;
+        const ny = y * 0.006;
+        const a = Math.sin(nx * 2.3 + t * 0.8) + Math.cos(ny * 2.7 - t * 0.9);
+        const b = Math.cos(nx * 1.8 - t * 0.7) - Math.sin(ny * 2.1 + t * 0.85);
+
+        let fx = Math.cos(a * 2.5 + b) * 0.9;
+        let fy = Math.sin(b * 2.3 + a) * 0.9;
+
+        const dx = x - pointer.x;
+        const dy = y - pointer.y;
+        const d2 = dx * dx + dy * dy + 120;
+        const swirl = (6000 / d2) * 0.12;
+        fx += (-dy / Math.sqrt(d2)) * swirl;
+        fy += (dx / Math.sqrt(d2)) * swirl;
+
+        return [fx, fy];
+      }
+
+      function update(dt) {
+        time += dt;
+        burst = Math.max(0, burst - dt * 0.85);
+
+        pointer.x += (pointer.tx - pointer.x) * 0.09;
+        pointer.y += (pointer.ty - pointer.y) * 0.09;
+
+        for (const p of fogParticles) {
+          const [fx, fy] = flowField(p.x, p.y, time * 0.9);
+
+          p.vx += fx * dt * 28;
+          p.vy += fy * dt * 28 - 0.01 * dt * 60;
+          p.vx *= 0.992;
+          p.vy *= 0.992;
+
+          p.x += p.vx;
+          p.y += p.vy;
+
+          p.life -= 0.004 * dt * 60;
+
+          if (p.x < -40 || p.x > width + 40 || p.y < -40 || p.y > height + 40 || p.life <= 0) {
+            spawnFog(p);
+          }
+        }
+
+        for (const p of emberParticles) {
+          const [fx, fy] = flowField(p.x, p.y, time * 1.4);
+
+          p.vx += fx * dt * 20;
+          p.vy += fy * dt * 20 - 0.03 * dt * 60;
+          p.vx *= 0.99;
+          p.vy *= 0.992;
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= (0.01 + burst * 0.012) * dt * 60;
+
+          if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20 || p.life <= 0) {
+            spawnEmber(p);
+          }
+        }
+
+        if (burst > 0.01) {
+          const extra = Math.floor(18 * burst);
+          for (let i = 0; i < extra; i += 1) {
+            const p = emberParticles[(Math.random() * emberParticles.length) | 0];
+            p.x = pointer.x + (Math.random() * 2 - 1) * 12;
+            p.y = pointer.y + (Math.random() * 2 - 1) * 12;
+            p.vx = (Math.random() * 2 - 1) * 2.2;
+            p.vy = -1.2 - Math.random() * 2.6;
+            p.life = 0.5 + Math.random() * 0.5;
+          }
+        }
+      }
+
+      function render() {
+        ctx.fillStyle = "rgba(6, 9, 16, 0.18)";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.globalCompositeOperation = "source-over";
+        for (const p of fogParticles) {
+          const a = Math.min(0.12, p.alpha * p.life);
+          const r = p.size * (0.8 + p.life * 0.45);
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+          g.addColorStop(0, `rgba(130, 146, 165, ${a})`);
+          g.addColorStop(1, "rgba(18, 24, 34, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.globalCompositeOperation = "lighter";
+        ctx.shadowBlur = glow ? 12 : 0;
+        ctx.shadowColor = "rgba(255, 185, 100, 0.7)";
+
+        for (const p of emberParticles) {
+          const a = Math.min(1, p.life * 1.3);
+          ctx.fillStyle = `rgba(255, 188, 100, ${a})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = "source-over";
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.05, (now - prev) * 0.001);
+        prev = now;
+        update(dt);
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      function updatePointer(clientX, clientY) {
+        pointer.tx = clientX;
+        pointer.ty = clientY;
+      }
+
+      window.addEventListener("mousemove", (event) => updatePointer(event.clientX, event.clientY));
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          updatePointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("click", () => {
+        burst = Math.min(1.3, burst + 0.5);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "g") glow = !glow;
+        if (key === "r") reset();
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      reset();
+      ctx.fillStyle = "#060910";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

@@ -42,6 +42,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Electrostatic field sandbox simulation
 - 3D Moebius ribbon geometry lab
 - Procedural nebula noise clouds
+- Ferrofluid magnet contour lab
+- Polar vortex flow advection demo
+- 3D wireframe wormhole tunnel
+- Prism caustic interference effect
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -129,6 +133,10 @@ web-effects-lab/
     electrostatic-field-sandbox.html
     moebius-ribbon-lab.html
     nebula-noise-clouds.html
+    ferrofluid-magnet-lab.html
+    polar-vortex-flow.html
+    wireframe-wormhole-3d.html
+    prism-caustic-interference.html
 ```
 
 ## Notes

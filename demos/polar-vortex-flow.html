@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Polar Vortex Flow</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #040811;
+        color: #eaf6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(9, 17, 31, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Polar Vortex Flow</h1>
+      <p>
+        Multi-center polar swirl flow with thousands of advected tracers and pressure-like bands.
+      </p>
+      <p>Move pointer to steer dominant vortex, click to inject swirl burst, <strong>R</strong> reset, <strong>G</strong> glow.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let prevTime = performance.now();
+
+      const particles = [];
+      const COUNT = 2200;
+
+      let glow = true;
+      let burst = 0;
+      let phase = 0;
+
+      const pointer = {
+        x: width * 0.5,
+        y: height * 0.5,
+        tx: width * 0.5,
+        ty: height * 0.5,
+      };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function spawn(p) {
+        p.x = Math.random() * width;
+        p.y = Math.random() * height;
+        p.vx = 0;
+        p.vy = 0;
+        p.life = 0.35 + Math.random() * 1.1;
+      }
+
+      function reset() {
+        particles.length = 0;
+        for (let i = 0; i < COUNT; i += 1) {
+          const p = {};
+          spawn(p);
+          particles.push(p);
+        }
+        burst = 0;
+      }
+
+      function vortexField(x, y, t) {
+        const centers = [
+          { x: width * 0.26 + Math.sin(t * 0.7) * 70, y: height * 0.34 + Math.cos(t * 0.8) * 60, s: 1.0 },
+          { x: width * 0.7 + Math.sin(t * 0.5 + 1.5) * 84, y: height * 0.64 + Math.cos(t * 0.65 + 1.1) * 72, s: -0.9 },
+          { x: pointer.x, y: pointer.y, s: 1.35 + burst * 0.9 },
+        ];
+
+        let fx = 0;
+        let fy = 0;
+
+        for (const c of centers) {
+          const dx = x - c.x;
+          const dy = y - c.y;
+          const d2 = dx * dx + dy * dy + 160;
+          const inv = 1 / Math.sqrt(d2);
+          const swirl = c.s * 120 * inv;
+
+          fx += (-dy) * swirl / (d2 * 0.015 + 1);
+          fy += dx * swirl / (d2 * 0.015 + 1);
+
+          const pull = c.s * 18 * inv;
+          fx += -dx * pull / (d2 * 0.02 + 1);
+          fy += -dy * pull / (d2 * 0.02 + 1);
+        }
+
+        const wave = Math.sin((x * 0.012 + y * 0.008 + t * 1.8) + Math.cos((x - y) * 0.007 - t));
+        fx += Math.cos(wave * 3.1) * 0.6;
+        fy += Math.sin(wave * 3.1) * 0.6;
+
+        return [fx, fy];
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.05, (now - prevTime) * 0.001);
+        prevTime = now;
+        phase += dt;
+
+        burst = Math.max(0, burst - dt * 0.65);
+
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        ctx.fillStyle = "rgba(4, 8, 17, 0.12)";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.shadowBlur = glow ? 11 : 0;
+        ctx.shadowColor = "rgba(116, 232, 255, 0.55)";
+
+        for (const p of particles) {
+          const ox = p.x;
+          const oy = p.y;
+
+          const [fx, fy] = vortexField(p.x, p.y, phase);
+          p.vx += fx * dt * 42;
+          p.vy += fy * dt * 42;
+
+          p.vx *= 0.985;
+          p.vy *= 0.985;
+
+          p.x += p.vx;
+          p.y += p.vy;
+
+          p.life -= dt * 0.07;
+
+          if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20 || p.life <= 0) {
+            spawn(p);
+            continue;
+          }
+
+          const speed = Math.hypot(p.vx, p.vy);
+          const alpha = Math.min(0.92, 0.06 + speed * 0.22);
+          const hue = 185 + speed * 18 + Math.sin((p.x + p.y) * 0.005 + phase * 2.2) * 35;
+
+          ctx.strokeStyle = `hsla(${hue}, 95%, ${68 + speed * 4}%, ${alpha})`;
+          ctx.lineWidth = 0.45 + Math.min(1.6, speed * 0.18);
+          ctx.beginPath();
+          ctx.moveTo(ox, oy);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("mousemove", (event) => {
+        pointer.tx = event.clientX;
+        pointer.ty = event.clientY;
+      });
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          pointer.tx = t.clientX;
+          pointer.ty = t.clientY;
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("click", () => {
+        burst = Math.min(1.2, burst + 0.45);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") {
+          reset();
+        }
+        if (key === "g") {
+          glow = !glow;
+        }
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      reset();
+      ctx.fillStyle = "#040811";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

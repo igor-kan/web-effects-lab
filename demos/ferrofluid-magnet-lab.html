@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ferrofluid Magnet Lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060b15;
+        color: #ecf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(9, 17, 31, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Ferrofluid Magnet Lab</h1>
+      <p>
+        Procedural ferrofluid-like contour field reacting to magnetic poles and pointer-driven attraction.
+      </p>
+      <p>Drag to move primary pole. Click to add poles. Press <strong>F</strong> flip polarity, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const GRID_W = 280;
+      const GRID_H = 180;
+      const low = document.createElement("canvas");
+      low.width = GRID_W;
+      low.height = GRID_H;
+      const lowCtx = low.getContext("2d", { alpha: false });
+      const image = lowCtx.createImageData(GRID_W, GRID_H);
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let poles = [];
+      let dragging = false;
+      let tick = 0;
+
+      const pointer = {
+        x: GRID_W * 0.5,
+        y: GRID_H * 0.5,
+      };
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function toGrid(clientX, clientY) {
+        return {
+          x: clamp((clientX / width) * GRID_W, 0, GRID_W - 1),
+          y: clamp((clientY / height) * GRID_H, 0, GRID_H - 1),
+        };
+      }
+
+      function resetPoles() {
+        poles = [
+          { x: GRID_W * 0.38, y: GRID_H * 0.55, p: 1.2, r: 58 },
+          { x: GRID_W * 0.65, y: GRID_H * 0.44, p: -1, r: 52 },
+          { x: GRID_W * 0.5, y: GRID_H * 0.32, p: 0.9, r: 44 },
+        ];
+      }
+
+      function fieldAt(x, y) {
+        let f = 0;
+        for (const pole of poles) {
+          const dx = x - pole.x;
+          const dy = y - pole.y;
+          const d2 = dx * dx + dy * dy + 18;
+          f += pole.p * (pole.r * pole.r) / d2;
+        }
+
+        const mdx = x - pointer.x;
+        const mdy = y - pointer.y;
+        const md2 = mdx * mdx + mdy * mdy + 45;
+        f += 0.9 * 3800 / md2;
+
+        return f;
+      }
+
+      function drawField() {
+        const px = image.data;
+        tick += 1;
+
+        const waveT = tick * 0.03;
+
+        for (let y = 0; y < GRID_H; y += 1) {
+          for (let x = 0; x < GRID_W; x += 1) {
+            const i = (x + y * GRID_W) * 4;
+
+            const v = fieldAt(x, y);
+            const ridges = Math.sin(v * 0.85 + waveT + Math.sin((x + y) * 0.03) * 1.4);
+            const spikes = Math.pow(Math.max(0, ridges), 2.6);
+            const m = clamp((v - 0.35) * 0.55 + spikes * 0.9, 0, 1);
+
+            const r = 18 + m * 150;
+            const g = 24 + m * 210;
+            const b = 42 + m * 235;
+
+            px[i] = r;
+            px[i + 1] = g;
+            px[i + 2] = b;
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+      }
+
+      function drawPoles() {
+        for (const pole of poles) {
+          const sx = (pole.x / GRID_W) * width;
+          const sy = (pole.y / GRID_H) * height;
+          const radius = Math.max(8, (pole.r / GRID_W) * width * 0.45);
+
+          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius * 2.3);
+          if (pole.p >= 0) {
+            grad.addColorStop(0, "rgba(255, 225, 178, 0.92)");
+            grad.addColorStop(0.55, "rgba(255, 164, 72, 0.48)");
+            grad.addColorStop(1, "rgba(255, 130, 42, 0)");
+          } else {
+            grad.addColorStop(0, "rgba(208, 246, 255, 0.96)");
+            grad.addColorStop(0.55, "rgba(94, 196, 255, 0.48)");
+            grad.addColorStop(1, "rgba(62, 160, 255, 0)");
+          }
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, radius * 2.3, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = pole.p >= 0 ? "#ffb56a" : "#82d4ff";
+          ctx.beginPath();
+          ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function frame() {
+        drawField();
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+
+        drawPoles();
+        requestAnimationFrame(frame);
+      }
+
+      function setPointer(clientX, clientY) {
+        const p = toGrid(clientX, clientY);
+        pointer.x = p.x;
+        pointer.y = p.y;
+
+        if (dragging) {
+          poles[0].x = p.x;
+          poles[0].y = p.y;
+        }
+      }
+
+      window.addEventListener("mousedown", (event) => {
+        if (event.button === 0) {
+          dragging = true;
+          setPointer(event.clientX, event.clientY);
+        }
+      });
+
+      window.addEventListener("mouseup", () => {
+        dragging = false;
+      });
+
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+
+      window.addEventListener("click", (event) => {
+        if (event.shiftKey) return;
+        const p = toGrid(event.clientX, event.clientY);
+        poles.push({ x: p.x, y: p.y, p: Math.random() < 0.5 ? 1 : -1, r: 34 + Math.random() * 34 });
+        if (poles.length > 9) {
+          poles.splice(1, 1);
+        }
+      });
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchstart", (event) => {
+        dragging = true;
+        const t = event.touches[0];
+        setPointer(t.clientX, t.clientY);
+      });
+
+      window.addEventListener("touchend", () => {
+        dragging = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "f") {
+          for (const pole of poles) {
+            pole.p *= -1;
+          }
+        }
+        if (key === "r") {
+          resetPoles();
+        }
+      });
+
+      window.addEventListener("resize", resize);
+
+      resize();
+      resetPoles();
+      frame();
+    </script>
+  </body>
+</html>

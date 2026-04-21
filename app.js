@@ -417,6 +417,50 @@ const demos = [
     tags: ["2D", "clouds", "noise", "animation"],
     file: "demos/nebula-noise-clouds.html",
   },
+  {
+    id: "ferrofluid-magnet-lab",
+    title: "Ferrofluid Magnet Lab",
+    stack: "Field Contour Simulation",
+    level: "Advanced",
+    description:
+      "Ferrofluid-style contour visualization driven by interactive magnetic poles and dynamic ripple ridges.",
+    interaction: "Drag to move main pole, click to add poles, F flips polarity, and R resets.",
+    tags: ["2D", "field", "simulation", "interactive"],
+    file: "demos/ferrofluid-magnet-lab.html",
+  },
+  {
+    id: "polar-vortex-flow",
+    title: "Polar Vortex Flow",
+    stack: "Particle Advection",
+    level: "Advanced",
+    description:
+      "Multi-center vortex flowfield that advects dense tracers into spiraling atmospheric bands.",
+    interaction: "Move pointer to steer flow, click swirl burst, R reset, and G toggle glow.",
+    tags: ["2D", "flow", "particles", "interactive"],
+    file: "demos/polar-vortex-flow.html",
+  },
+  {
+    id: "wireframe-wormhole-3d",
+    title: "Wireframe Wormhole 3D",
+    stack: "Three.js Tunnel",
+    level: "Advanced",
+    description:
+      "Neon wireframe tunnel flythrough with ring-slice deformation, camera steering, and speed boosts.",
+    interaction: "Move pointer to steer, click boost, Q changes speed mode, and P pauses.",
+    tags: ["3D", "tunnel", "wireframe", "interactive"],
+    file: "demos/wireframe-wormhole-3d.html",
+  },
+  {
+    id: "prism-caustic-interference",
+    title: "Prism Caustic Interference",
+    stack: "Interference Waves",
+    level: "Advanced",
+    description:
+      "Chromatic caustic interference field with prism-like refraction patterns and animated wave pulses.",
+    interaction: "Move pointer to refract center, click pulse, C cycles palette, and P pauses.",
+    tags: ["2D", "light", "caustics", "animation"],
+    file: "demos/prism-caustic-interference.html",
+  },
 ];
 
 const state = {

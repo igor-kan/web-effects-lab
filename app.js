@@ -593,6 +593,50 @@ const demos = [
     tags: ["2D", "lava", "simulation", "interactive"],
     file: "demos/lava-flow-topography.html",
   },
+  {
+    id: "soap-film-iridescence",
+    title: "Soap Film Iridescence",
+    stack: "Thin-Film Interference",
+    level: "Advanced",
+    description:
+      "Iridescent thin-film color simulation with flowing thickness waves and chromatic fringe shifts.",
+    interaction: "Move pointer to bend film, click pulse, C cycles palette, and P pauses.",
+    tags: ["2D", "shader", "iridescence", "interactive"],
+    file: "demos/soap-film-iridescence.html",
+  },
+  {
+    id: "fractal-lightning-web",
+    title: "Fractal Lightning Web",
+    stack: "Recursive Lightning",
+    level: "Advanced",
+    description:
+      "Branching lightning network connecting charged nodes with recursive bolt splits and glow flicker.",
+    interaction: "Move pointer to attract arcs, click overload burst, A toggles auto pulses, and R reseeds nodes.",
+    tags: ["2D", "lightning", "light", "interactive"],
+    file: "demos/fractal-lightning-web.html",
+  },
+  {
+    id: "sandstorm-particle-wall",
+    title: "Sandstorm Particle Wall",
+    stack: "Particle Weather Field",
+    level: "Advanced",
+    description:
+      "Dense sandstorm wall with depth-layer particles, directional shear wind, and gust-driven turbulence.",
+    interaction: "Move pointer to bend gusts, click burst, W cycles wind, and D toggles density.",
+    tags: ["2D", "particles", "weather", "interactive"],
+    file: "demos/sandstorm-particle-wall.html",
+  },
+  {
+    id: "bioluminescent-reef-3d",
+    title: "Bioluminescent Reef 3D",
+    stack: "Three.js Underwater Scene",
+    level: "Advanced",
+    description:
+      "Underwater reef environment with glowing organisms, drifting particulate bloom, and orbit camera control.",
+    interaction: "Drag to orbit, wheel to zoom, click glow pulse, A auto-spin, and R reseeds creatures.",
+    tags: ["3D", "environment", "bioluminescent", "interactive"],
+    file: "demos/bioluminescent-reef-3d.html",
+  },
 ];
 
 const state = {

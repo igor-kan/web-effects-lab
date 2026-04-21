@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bioluminescent Reef 3D</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #020a15;
+        color: #eaf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      #stage {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 560px;
+        background: rgba(9, 17, 30, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.36; }
+      .home { color: #9fd8ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Bioluminescent Reef 3D</h1>
+      <p>
+        Underwater 3D reef scene with glowing organisms, drifting particles, and soft volumetric light cues.
+      </p>
+      <p>Drag to orbit, wheel to zoom, click glow pulse, <strong>A</strong> auto-spin, <strong>R</strong> reseed creatures.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+
+      const canvas = document.getElementById('stage');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x020a15);
+      scene.fog = new THREE.Fog(0x020a15, 5, 34);
+
+      const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 120);
+
+      const orbit = { theta: 0.9, phi: 1.1, radius: 9.6, dragging: false, px: 0, py: 0 };
+
+      function updateCamera() {
+        orbit.phi = Math.max(0.22, Math.min(Math.PI - 0.2, orbit.phi));
+        orbit.radius = Math.max(4.8, Math.min(18, orbit.radius));
+        const s = Math.sin(orbit.phi);
+        camera.position.set(
+          orbit.radius * s * Math.sin(orbit.theta),
+          0.5 + orbit.radius * Math.cos(orbit.phi),
+          orbit.radius * s * Math.cos(orbit.theta)
+        );
+        camera.lookAt(0, 0.8, 0);
+      }
+
+      scene.add(new THREE.HemisphereLight(0x79d9ff, 0x0a1530, 0.78));
+
+      const key = new THREE.PointLight(0x52d8ff, 2.4, 30, 2);
+      key.position.set(2.5, 4, 2.2);
+      scene.add(key);
+
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(9, 72),
+        new THREE.MeshStandardMaterial({ color: 0x10304f, roughness: 0.9, metalness: 0.05 })
+      );
+      floor.rotation.x = -Math.PI * 0.5;
+      floor.position.y = -1.4;
+      scene.add(floor);
+
+      const organisms = [];
+
+      function reseedOrganisms() {
+        for (const o of organisms) {
+          scene.remove(o.mesh);
+        }
+        organisms.length = 0;
+
+        const geo = new THREE.IcosahedronGeometry(0.16, 1);
+
+        for (let i = 0; i < 140; i += 1) {
+          const hue = 0.46 + Math.random() * 0.15;
+          const mat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color().setHSL(hue, 0.72, 0.42),
+            emissive: new THREE.Color().setHSL(hue, 1.0, 0.36),
+            emissiveIntensity: 0.85 + Math.random() * 0.9,
+            roughness: 0.45,
+            metalness: 0.1,
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          const r = 1.7 + Math.random() * 5.2;
+          const a = Math.random() * Math.PI * 2;
+          mesh.position.set(Math.cos(a) * r, -1 + Math.random() * 2.4, Math.sin(a) * r);
+          mesh.scale.setScalar(0.5 + Math.random() * 1.4);
+          scene.add(mesh);
+
+          organisms.push({
+            mesh,
+            base: mesh.position.clone(),
+            phase: Math.random() * Math.PI * 2,
+            speed: 0.6 + Math.random() * 1.2,
+          });
+        }
+      }
+
+      reseedOrganisms();
+
+      const particleCount = 1300;
+      const pGeo = new THREE.BufferGeometry();
+      const pArr = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount; i += 1) {
+        const i3 = i * 3;
+        pArr[i3] = (Math.random() * 2 - 1) * 9;
+        pArr[i3 + 1] = -1 + Math.random() * 6;
+        pArr[i3 + 2] = (Math.random() * 2 - 1) * 9;
+      }
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
+      const pMat = new THREE.PointsMaterial({ color: 0x8ceeff, size: 0.05, transparent: true, opacity: 0.65 });
+      const particles = new THREE.Points(pGeo, pMat);
+      scene.add(particles);
+
+      let autoSpin = true;
+      let pulse = 0;
+
+      function onDown(x, y) {
+        orbit.dragging = true;
+        orbit.px = x;
+        orbit.py = y;
+      }
+
+      function onMove(x, y) {
+        if (!orbit.dragging) return;
+        const dx = x - orbit.px;
+        const dy = y - orbit.py;
+        orbit.px = x;
+        orbit.py = y;
+        orbit.theta -= dx * 0.005;
+        orbit.phi += dy * 0.0045;
+      }
+
+      addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+      addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+      addEventListener('mouseup', () => { orbit.dragging = false; });
+      addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        onDown(t.clientX, t.clientY);
+      }, { passive: true });
+      addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        onMove(t.clientX, t.clientY);
+      }, { passive: true });
+      addEventListener('touchend', () => { orbit.dragging = false; });
+
+      addEventListener('wheel', (e) => { orbit.radius += e.deltaY * 0.01; });
+
+      addEventListener('click', () => {
+        pulse = Math.min(1.4, pulse + 0.5);
+      });
+
+      addEventListener('keydown', (e) => {
+        const keyName = e.key.toLowerCase();
+        if (keyName === 'a') autoSpin = !autoSpin;
+        if (keyName === 'r') reseedOrganisms();
+      });
+
+      function animate(now) {
+        const t = now * 0.001;
+        if (autoSpin && !orbit.dragging) orbit.theta += 0.0018;
+        pulse = Math.max(0, pulse - 0.014);
+
+        for (const o of organisms) {
+          const m = o.mesh;
+          m.position.x = o.base.x + Math.sin(t * o.speed + o.phase) * 0.14;
+          m.position.y = o.base.y + Math.cos(t * o.speed * 1.2 + o.phase) * 0.18;
+          m.position.z = o.base.z + Math.sin(t * o.speed * 0.8 + o.phase) * 0.14;
+          m.material.emissiveIntensity = 0.52 + (Math.sin(t * 3 + o.phase) * 0.5 + 0.5) * 0.95 + pulse * 0.5;
+        }
+
+        const arr = pGeo.attributes.position.array;
+        for (let i = 0; i < particleCount; i += 1) {
+          const i3 = i * 3;
+          arr[i3] += Math.sin(t * 0.8 + i * 0.03) * 0.0018;
+          arr[i3 + 1] += 0.003 + Math.sin(t * 1.2 + i * 0.07) * 0.0015;
+          arr[i3 + 2] += Math.cos(t * 0.7 + i * 0.05) * 0.0018;
+          if (arr[i3 + 1] > 5.2) arr[i3 + 1] = -1.5;
+        }
+        pGeo.attributes.position.needsUpdate = true;
+
+        key.position.set(Math.cos(t * 0.7) * 3.2, 2.6 + Math.sin(t * 1.1) * 1.2, Math.sin(t * 0.7) * 3.2);
+        pMat.opacity = 0.45 + Math.sin(t * 2.3) * 0.1 + pulse * 0.14;
+
+        updateCamera();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      updateCamera();
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

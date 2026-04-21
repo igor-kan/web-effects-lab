@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fractal Lightning Web</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #040814;
+        color: #e8f5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(8, 15, 30, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.36; }
+      .home { color: #9fd8ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Fractal Lightning Web</h1>
+      <p>
+        Recursive lightning network connecting charged nodes with branching discharges and ambient flicker.
+      </p>
+      <p>Move pointer to attract discharges, click overload burst, <strong>A</strong> auto pulses, <strong>R</strong> reseed nodes.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d');
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let prev = performance.now();
+      let overload = 0;
+      let autoPulse = true;
+
+      const pointer = { x: width * 0.5, y: height * 0.5, tx: width * 0.5, ty: height * 0.5 };
+      const nodes = [];
+      const NODE_COUNT = 18;
+
+      function resize() {
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function seedNodes() {
+        nodes.length = 0;
+        for (let i = 0; i < NODE_COUNT; i += 1) {
+          nodes.push({
+            x: 40 + Math.random() * (width - 80),
+            y: 40 + Math.random() * (height - 80),
+            r: 5 + Math.random() * 8,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      function drawBolt(ax, ay, bx, by, chaos, alpha, widthPx, depth = 0) {
+        const dx = bx - ax;
+        const dy = by - ay;
+        const dist = Math.hypot(dx, dy);
+        const segs = Math.max(6, (dist / 22) | 0);
+
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+
+        for (let i = 1; i < segs; i += 1) {
+          const t = i / segs;
+          const wave = Math.sin(t * Math.PI);
+          const j = (Math.random() * 2 - 1) * chaos * wave;
+          const nx = -dy / (dist || 1);
+          const ny = dx / (dist || 1);
+          ctx.lineTo(ax + dx * t + nx * j, ay + dy * t + ny * j);
+        }
+        ctx.lineTo(bx, by);
+
+        ctx.strokeStyle = `rgba(120, 228, 255, ${alpha})`;
+        ctx.lineWidth = widthPx;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = 'rgba(95, 215, 255, 0.92)';
+        ctx.stroke();
+
+        if (depth < 2 && Math.random() < 0.34) {
+          const t = 0.25 + Math.random() * 0.5;
+          const sx = ax + dx * t;
+          const sy = ay + dy * t;
+          const a = Math.atan2(dy, dx) + (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.8);
+          const len = dist * (0.14 + Math.random() * 0.17);
+          drawBolt(sx, sy, sx + Math.cos(a) * len, sy + Math.sin(a) * len, chaos * 0.55, alpha * 0.45, Math.max(0.6, widthPx * 0.7), depth + 1);
+        }
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.05, (now - prev) * 0.001);
+        prev = now;
+        time += dt;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.1;
+        pointer.y += (pointer.ty - pointer.y) * 0.1;
+        overload = Math.max(0, overload - dt * 0.8);
+
+        if (autoPulse && Math.random() < 0.03) {
+          overload = Math.min(1.2, overload + 0.22);
+        }
+
+        ctx.fillStyle = 'rgba(4, 8, 20, 0.2)';
+        ctx.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < nodes.length; i += 1) {
+          const a = nodes[i];
+          for (let j = i + 1; j < nodes.length; j += 1) {
+            const b = nodes[j];
+            const d = Math.hypot(a.x - b.x, a.y - b.y);
+            if (d > 280) continue;
+
+            const gate = Math.sin(time * 4.2 + a.phase + j * 0.2) * 0.5 + 0.5;
+            if (gate < 0.55 - overload * 0.22) continue;
+
+            const chaos = 7 + (1 - d / 280) * 12 + overload * 16;
+            const alpha = 0.09 + gate * 0.36 + overload * 0.22;
+            const widthPx = 0.7 + gate * 1.4;
+            drawBolt(a.x, a.y, b.x, b.y, chaos, alpha, widthPx);
+          }
+
+          const dp = Math.hypot(a.x - pointer.x, a.y - pointer.y);
+          if (dp < 240 && Math.random() < 0.45 + overload * 0.45) {
+            const chaos = 10 + (1 - dp / 240) * 16 + overload * 18;
+            drawBolt(a.x, a.y, pointer.x, pointer.y, chaos, 0.18 + overload * 0.25, 1.1 + overload * 0.9);
+          }
+        }
+
+        ctx.shadowBlur = 0;
+        for (const n of nodes) {
+          const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 2.8);
+          glow.addColorStop(0, 'rgba(205, 244, 255, 0.95)');
+          glow.addColorStop(1, 'rgba(80, 195, 255, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r * 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX;
+        pointer.ty = event.clientY;
+      });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX;
+        pointer.ty = t.clientY;
+      }, { passive: true });
+
+      addEventListener('click', () => {
+        overload = Math.min(1.35, overload + 0.55);
+      });
+
+      addEventListener('keydown', (event) => {
+        const key = event.key.toLowerCase();
+        if (key === 'a') autoPulse = !autoPulse;
+        if (key === 'r') seedNodes();
+      });
+
+      addEventListener('resize', () => {
+        resize();
+        seedNodes();
+      });
+
+      resize();
+      seedNodes();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

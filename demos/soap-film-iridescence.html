@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soap Film Iridescence</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #070b13;
+        color: #ebf6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(9, 17, 30, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.36; }
+      .home { color: #9fd8ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Soap Film Iridescence</h1>
+      <p>
+        Thin-film interference style effect with flowing thickness waves and chromatic rainbow fringes.
+      </p>
+      <p>Move pointer to bend film normals, click pulse, <strong>C</strong> palette shift, <strong>P</strong> pause.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const W = 320;
+      const H = 190;
+      const low = document.createElement('canvas');
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext('2d', { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let paused = false;
+      let palette = 0;
+      let pulse = 0;
+
+      const pointer = { x: 0.5, y: 0.5, tx: 0.5, ty: 0.5 };
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function paletteTint(t, i) {
+        const phase = t * 6.283 + i;
+        if (palette === 0) {
+          return [
+            0.5 + 0.5 * Math.sin(phase),
+            0.5 + 0.5 * Math.sin(phase + 2.2),
+            0.5 + 0.5 * Math.sin(phase + 4.2),
+          ];
+        }
+        if (palette === 1) {
+          return [
+            0.6 + 0.4 * Math.sin(phase + 0.9),
+            0.5 + 0.5 * Math.sin(phase + 3.4),
+            0.4 + 0.6 * Math.sin(phase + 5.1),
+          ];
+        }
+        if (palette === 2) {
+          return [
+            0.6 + 0.4 * Math.sin(phase + 2.4),
+            0.6 + 0.4 * Math.sin(phase + 4.1),
+            0.6 + 0.4 * Math.sin(phase + 5.8),
+          ];
+        }
+        return [
+          0.45 + 0.55 * Math.sin(phase + 1.2),
+          0.5 + 0.5 * Math.sin(phase + 2.9),
+          0.55 + 0.45 * Math.sin(phase + 4.8),
+        ];
+      }
+
+      function filmThickness(x, y, t) {
+        const n1 = Math.sin(x * 7.2 + t * 1.6) * Math.cos(y * 6.8 - t * 1.4);
+        const n2 = Math.sin((x + y) * 11.2 - t * 2.2);
+        const n3 = Math.cos((x * x + y * y) * 8.8 + t * 0.9);
+        return 0.5 + n1 * 0.2 + n2 * 0.16 + n3 * 0.12;
+      }
+
+      function drawFrame() {
+        const px = image.data;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+        pulse = Math.max(0, pulse - 0.012);
+
+        for (let y = 0; y < H; y += 1) {
+          for (let x = 0; x < W; x += 1) {
+            const i = (x + y * W) * 4;
+
+            const uvx = x / W;
+            const uvy = y / H;
+
+            const dx = uvx - pointer.x;
+            const dy = uvy - pointer.y;
+            const d = Math.sqrt(dx * dx + dy * dy) + 1e-4;
+
+            const bend = Math.exp(-d * 7.5) * (0.22 + pulse * 0.42);
+            const bx = uvx + dx * bend;
+            const by = uvy + dy * bend;
+
+            const thick = filmThickness(bx, by, time);
+            const phase = thick * 8.5 + Math.sin((bx - by) * 9.2 + time * 1.4) * 0.55;
+
+            const [r1, g1, b1] = paletteTint(phase * 0.17, 0.0);
+            const [r2, g2, b2] = paletteTint(phase * 0.19, 1.8);
+            const [r3, g3, b3] = paletteTint(phase * 0.23, 3.6);
+
+            const fresnel = clamp(1 - d * 1.8, 0, 1);
+            const sheen = clamp(Math.sin((thick + time) * 10.5) * 0.5 + 0.5, 0, 1);
+            const alpha = 0.4 + fresnel * 0.6;
+
+            const r = (r1 * 0.45 + r2 * 0.35 + r3 * 0.2) * (0.45 + sheen * 0.65) * alpha;
+            const g = (g1 * 0.45 + g2 * 0.35 + g3 * 0.2) * (0.45 + sheen * 0.65) * alpha;
+            const b = (b1 * 0.45 + b2 * 0.35 + b3 * 0.2) * (0.45 + sheen * 0.65) * alpha;
+
+            const bg = 18 + Math.sin((uvx + uvy) * 8.6 + time * 0.7) * 8;
+
+            px[i] = clamp(bg + r * 230, 0, 255);
+            px[i + 1] = clamp(bg + 6 + g * 230, 0, 255);
+            px[i + 2] = clamp(bg + 12 + b * 235, 0, 255);
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      function frame() {
+        if (!paused) time += 0.016;
+        drawFrame();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX / width;
+        pointer.ty = event.clientY / height;
+      });
+
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX / width;
+        pointer.ty = t.clientY / height;
+      }, { passive: true });
+
+      addEventListener('click', () => {
+        pulse = Math.min(1.3, pulse + 0.42);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'p') paused = !paused;
+        if (k === 'c') palette = (palette + 1) % 4;
+      });
+
+      addEventListener('resize', resize);
+
+      resize();
+      frame();
+    </script>
+  </body>
+</html>

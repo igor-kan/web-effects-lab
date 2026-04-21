@@ -30,6 +30,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Shockwave ripple simulation
 - Magnetic field line tracer effect
 - Glass refraction shader effect
+- Rain-on-glass distortion effect
+- Fireworks particle simulation
+- 3D terrain wave simulation
+- Kaleidoscope mandala shader
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -90,6 +94,10 @@ web-effects-lab/
     shockwave-ripples.html
     magnetic-field-lines.html
     glass-refraction-shader.html
+    rain-glass-distortion.html
+    fireworks-night-sky.html
+    terrain-waves-3d.html
+    kaleidoscope-mandala-shader.html
 ```
 
 ## Notes

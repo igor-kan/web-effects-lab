@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fireworks Night Sky</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #060913;
+        color: #f0f5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas { width: 100vw; height: 100vh; display: block; }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 460px;
+        background: rgba(12, 16, 30, 0.62);
+        border: 1px solid rgba(178, 190, 255, 0.32);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.36; }
+      .home { color: #b6c5ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Fireworks Night Sky</h1>
+      <p>Interactive particle fireworks with colorful bursts, trails, and glowing embers.</p>
+      <p>Click/tap to launch fireworks. Press <strong>A</strong> to toggle auto show.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const rockets = [];
+      const particles = [];
+      let auto = true;
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function launch(x = Math.random() * width, targetY = height * (0.2 + Math.random() * 0.35)) {
+        rockets.push({
+          x,
+          y: height + 10,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: -(6.5 + Math.random() * 2.5),
+          targetY,
+          hue: Math.random() * 360,
+          exploded: false,
+        });
+      }
+
+      function explode(x, y, hue) {
+        const count = 70 + Math.floor(Math.random() * 55);
+        for (let i = 0; i < count; i += 1) {
+          const angle = (i / count) * Math.PI * 2 + Math.random() * 0.2;
+          const speed = 1.4 + Math.random() * 4.6;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 60 + Math.random() * 60,
+            maxLife: 60 + Math.random() * 60,
+            hue: (hue + (Math.random() - 0.5) * 42 + 360) % 360,
+            size: 1.8 + Math.random() * 2.6,
+          });
+        }
+      }
+
+      function update() {
+        for (let i = rockets.length - 1; i >= 0; i -= 1) {
+          const r = rockets[i];
+          r.vy += 0.03;
+          r.x += r.vx;
+          r.y += r.vy;
+
+          if (!r.exploded && (r.vy >= -0.4 || r.y <= r.targetY)) {
+            explode(r.x, r.y, r.hue);
+            r.exploded = true;
+            rockets.splice(i, 1);
+          }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const p = particles[i];
+          p.life -= 1;
+          p.vx *= 0.986;
+          p.vy *= 0.986;
+          p.vy += 0.028;
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      function drawBackground() {
+        const g = ctx.createLinearGradient(0, 0, 0, height);
+        g.addColorStop(0, "rgba(8, 10, 22, 0.35)");
+        g.addColorStop(1, "rgba(3, 6, 12, 0.35)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < 55; i += 1) {
+          const x = (i * 173.37) % width;
+          const y = (i * 89.53) % height;
+          ctx.fillStyle = `rgba(200,220,255,${0.08 + (i % 5) * 0.02})`;
+          ctx.fillRect(x, y, 1.2, 1.2);
+        }
+      }
+
+      function draw() {
+        drawBackground();
+
+        for (const r of rockets) {
+          ctx.strokeStyle = `hsla(${r.hue}, 95%, 70%, 0.5)`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(r.x, r.y + 12);
+          ctx.lineTo(r.x, r.y);
+          ctx.stroke();
+
+          ctx.fillStyle = `hsla(${r.hue}, 100%, 72%, 0.95)`;
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.globalCompositeOperation = "lighter";
+        for (const p of particles) {
+          const alpha = p.life / p.maxLife;
+          ctx.fillStyle = `hsla(${p.hue}, 100%, ${55 + alpha * 22}%, ${alpha * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalCompositeOperation = "source-over";
+      }
+
+      function frame() {
+        if (auto && Math.random() < 0.07) {
+          launch();
+        }
+
+        update();
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("click", (event) => {
+        launch(event.clientX, event.clientY);
+      });
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          const t = event.touches[0];
+          launch(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key.toLowerCase() === "a") {
+          auto = !auto;
+        }
+      });
+
+      resize();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

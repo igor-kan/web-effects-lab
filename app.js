@@ -285,6 +285,50 @@ const demos = [
     tags: ["2D", "shader", "refraction", "light"],
     file: "demos/glass-refraction-shader.html",
   },
+  {
+    id: "rain-glass-distortion",
+    title: "Rain Glass Distortion",
+    stack: "2D Refraction FX",
+    level: "Advanced",
+    description:
+      "Sliding raindrops distort and refract background lights for a cinematic wet-glass effect.",
+    interaction: "Press D for dense rain and R to reset droplet distribution.",
+    tags: ["2D", "rain", "distortion", "animation"],
+    file: "demos/rain-glass-distortion.html",
+  },
+  {
+    id: "fireworks-night-sky",
+    title: "Fireworks Night Sky",
+    stack: "Particle System",
+    level: "Advanced",
+    description:
+      "Interactive fireworks with launch trails, radial burst physics, and glowing embers.",
+    interaction: "Click/tap to launch fireworks and press A to toggle auto show.",
+    tags: ["2D", "particles", "fireworks", "interactive"],
+    file: "demos/fireworks-night-sky.html",
+  },
+  {
+    id: "terrain-waves-3d",
+    title: "Terrain Waves 3D",
+    stack: "Three.js Geometry",
+    level: "Advanced",
+    description:
+      "Deforming procedural terrain mesh with dynamic lighting and orbit camera controls.",
+    interaction: "Drag to orbit, wheel to zoom, and press S to toggle wireframe.",
+    tags: ["3D", "terrain", "waves", "interactive"],
+    file: "demos/terrain-waves-3d.html",
+  },
+  {
+    id: "kaleidoscope-mandala-shader",
+    title: "Kaleidoscope Mandala Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Symmetry-folded procedural mandala with layered noise petals and chromatic modulation.",
+    interaction: "Move pointer to warp the symmetry center in real time.",
+    tags: ["2D", "shader", "kaleidoscope", "animation"],
+    file: "demos/kaleidoscope-mandala-shader.html",
+  },
 ];
 
 const state = {

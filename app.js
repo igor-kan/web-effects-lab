@@ -252,6 +252,39 @@ const demos = [
     tags: ["2D", "water", "shader", "light"],
     file: "demos/water-caustics-shader.html",
   },
+  {
+    id: "shockwave-ripples",
+    title: "Shockwave Ripples",
+    stack: "Wave Equation Grid",
+    level: "Advanced",
+    description:
+      "Surface-wave simulation with refractive-style shading and interactive shockwave injection.",
+    interaction: "Drag to inject ripples, press R to reset, and press A to toggle auto pulses.",
+    tags: ["2D", "water", "simulation", "interactive"],
+    file: "demos/shockwave-ripples.html",
+  },
+  {
+    id: "magnetic-field-lines",
+    title: "Magnetic Field Lines",
+    stack: "Particle Field Tracing",
+    level: "Advanced",
+    description:
+      "Dense tracer visualization of a dynamic electromagnetic-style vector field with interactive poles.",
+    interaction: "Drag to move the interactive pole, press F to flip polarity, and press R to reseed.",
+    tags: ["2D", "particles", "field", "interactive"],
+    file: "demos/magnetic-field-lines.html",
+  },
+  {
+    id: "glass-refraction-shader",
+    title: "Glass Refraction Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Real-time refractive glass distortion with chromatic separation and animated micro-surface noise.",
+    interaction: "Move pointer to bend the refraction profile in real time.",
+    tags: ["2D", "shader", "refraction", "light"],
+    file: "demos/glass-refraction-shader.html",
+  },
 ];
 
 const state = {

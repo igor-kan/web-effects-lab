@@ -27,6 +27,9 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Procedural stem-growth simulation
 - Falling sand cellular simulation
 - Water caustics shader effect
+- Shockwave ripple simulation
+- Magnetic field line tracer effect
+- Glass refraction shader effect
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -84,6 +87,9 @@ web-effects-lab/
     stem-growth-simulation.html
     falling-sand-lab.html
     water-caustics-shader.html
+    shockwave-ripples.html
+    magnetic-field-lines.html
+    glass-refraction-shader.html
 ```
 
 ## Notes

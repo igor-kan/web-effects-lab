@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shockwave Ripples</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #071425;
+        color: #e8f6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 6;
+        max-width: 470px;
+        background: rgba(8, 22, 38, 0.62);
+        border: 1px solid rgba(146, 217, 255, 0.33);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9edfff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Shockwave Ripples</h1>
+      <p>Wave-equation ripple field with refractive-style shading. Drag to inject shockwaves.</p>
+      <p>Press <strong>R</strong> to reset and <strong>A</strong> to toggle auto pulses.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const W = 280;
+      const H = 170;
+      const SIZE = W * H;
+
+      const lowCanvas = document.createElement("canvas");
+      lowCanvas.width = W;
+      lowCanvas.height = H;
+      const lowCtx = lowCanvas.getContext("2d", { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let fieldA = new Float32Array(SIZE);
+      let fieldB = new Float32Array(SIZE);
+
+      const pointer = { x: W * 0.5, y: H * 0.5, down: false };
+      let autoPulse = true;
+      let tick = 0;
+
+      function idx(x, y) {
+        return x + y * W;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function toGrid(clientX, clientY) {
+        pointer.x = clamp(Math.floor((clientX / width) * W), 1, W - 2);
+        pointer.y = clamp(Math.floor((clientY / height) * H), 1, H - 2);
+      }
+
+      function splash(cx, cy, radius = 6, strength = 1.1) {
+        for (let oy = -radius; oy <= radius; oy += 1) {
+          for (let ox = -radius; ox <= radius; ox += 1) {
+            const d2 = ox * ox + oy * oy;
+            if (d2 > radius * radius) continue;
+            const x = clamp(cx + ox, 1, W - 2);
+            const y = clamp(cy + oy, 1, H - 2);
+            fieldA[idx(x, y)] += strength * (1 - d2 / (radius * radius + 0.01));
+          }
+        }
+      }
+
+      function step() {
+        tick += 1;
+
+        if (pointer.down) {
+          splash(pointer.x, pointer.y, 7, 1.45);
+        }
+
+        if (autoPulse && tick % 40 === 0) {
+          const x = (W * (0.2 + Math.random() * 0.6)) | 0;
+          const y = (H * (0.22 + Math.random() * 0.56)) | 0;
+          splash(x, y, 6, 1.1 + Math.random() * 0.6);
+        }
+
+        for (let y = 1; y < H - 1; y += 1) {
+          for (let x = 1; x < W - 1; x += 1) {
+            const i = idx(x, y);
+            const sum = fieldA[idx(x - 1, y)] + fieldA[idx(x + 1, y)] + fieldA[idx(x, y - 1)] + fieldA[idx(x, y + 1)];
+            let v = sum * 0.5 - fieldB[i];
+            v *= 0.992;
+            fieldB[i] = v;
+          }
+        }
+
+        [fieldA, fieldB] = [fieldB, fieldA];
+      }
+
+      function draw() {
+        const px = image.data;
+
+        for (let y = 1; y < H - 1; y += 1) {
+          for (let x = 1; x < W - 1; x += 1) {
+            const i = idx(x, y);
+            const p = i * 4;
+
+            const h = fieldA[i];
+            const dx = fieldA[idx(x + 1, y)] - fieldA[idx(x - 1, y)];
+            const dy = fieldA[idx(x, y + 1)] - fieldA[idx(x, y - 1)];
+
+            const light = clamp(132 + dx * 190 - dy * 210 + h * 90, 0, 255);
+            const cyan = clamp(110 + h * 190, 0, 255);
+            const blue = clamp(180 + h * 150 + Math.abs(dx) * 45, 0, 255);
+
+            px[p] = light * 0.35;
+            px[p + 1] = cyan;
+            px[p + 2] = blue;
+            px[p + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(lowCanvas, 0, 0, width, height);
+      }
+
+      function frame() {
+        step();
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function reset() {
+        fieldA.fill(0);
+        fieldB.fill(0);
+      }
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        toGrid(event.clientX, event.clientY);
+        splash(pointer.x, pointer.y, 8, 1.9);
+      });
+      window.addEventListener("mousemove", (event) => {
+        toGrid(event.clientX, event.clientY);
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          pointer.down = true;
+          const t = event.touches[0];
+          toGrid(t.clientX, t.clientY);
+          splash(pointer.x, pointer.y, 8, 1.9);
+        },
+        { passive: true }
+      );
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          toGrid(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") reset();
+        if (key === "a") autoPulse = !autoPulse;
+      });
+
+      resize();
+      reset();
+      frame();
+    </script>
+  </body>
+</html>

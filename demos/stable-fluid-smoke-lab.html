@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stable Fluid Smoke Lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #030814;
+        color: #e9f5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 500px;
+        background: rgba(6, 16, 31, 0.58);
+        border: 1px solid rgba(149, 220, 255, 0.3);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+        opacity: 0.92;
+      }
+
+      .home {
+        color: #95deff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Stable Fluid Smoke Lab</h1>
+      <p>Semi-Lagrangian fluid with pressure projection, buoyancy, and vorticity confinement.</p>
+      <p>Drag to inject smoke and momentum. Press <strong>R</strong> to reset and <strong>B</strong> to toggle buoyancy.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const N = 92;
+      const SIZE = (N + 2) * (N + 2);
+      const DT = 0.1;
+      const VISC = 0.00002;
+      const DIFF = 0.00005;
+      const ITER = 8;
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let cellW = width / N;
+      let cellH = height / N;
+
+      const u = new Float32Array(SIZE);
+      const v = new Float32Array(SIZE);
+      const uPrev = new Float32Array(SIZE);
+      const vPrev = new Float32Array(SIZE);
+
+      const densR = new Float32Array(SIZE);
+      const densG = new Float32Array(SIZE);
+      const densB = new Float32Array(SIZE);
+      const densRPrev = new Float32Array(SIZE);
+      const densGPrev = new Float32Array(SIZE);
+      const densBPrev = new Float32Array(SIZE);
+
+      const curl = new Float32Array(SIZE);
+
+      const pointer = {
+        down: false,
+        x: width * 0.5,
+        y: height * 0.5,
+        px: width * 0.5,
+        py: height * 0.5,
+        hue: 0,
+      };
+
+      let buoyancyEnabled = true;
+
+      function ix(x, y) {
+        return x + (N + 2) * y;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function setBounds(b, x) {
+        for (let i = 1; i <= N; i += 1) {
+          x[ix(0, i)] = b === 1 ? -x[ix(1, i)] : x[ix(1, i)];
+          x[ix(N + 1, i)] = b === 1 ? -x[ix(N, i)] : x[ix(N, i)];
+          x[ix(i, 0)] = b === 2 ? -x[ix(i, 1)] : x[ix(i, 1)];
+          x[ix(i, N + 1)] = b === 2 ? -x[ix(i, N)] : x[ix(i, N)];
+        }
+
+        x[ix(0, 0)] = 0.5 * (x[ix(1, 0)] + x[ix(0, 1)]);
+        x[ix(0, N + 1)] = 0.5 * (x[ix(1, N + 1)] + x[ix(0, N)]);
+        x[ix(N + 1, 0)] = 0.5 * (x[ix(N, 0)] + x[ix(N + 1, 1)]);
+        x[ix(N + 1, N + 1)] = 0.5 * (x[ix(N, N + 1)] + x[ix(N + 1, N)]);
+      }
+
+      function linSolve(b, x, x0, a, c) {
+        for (let k = 0; k < ITER; k += 1) {
+          for (let j = 1; j <= N; j += 1) {
+            for (let i = 1; i <= N; i += 1) {
+              x[ix(i, j)] =
+                (x0[ix(i, j)] +
+                  a * (x[ix(i - 1, j)] + x[ix(i + 1, j)] + x[ix(i, j - 1)] + x[ix(i, j + 1)])) /
+                c;
+            }
+          }
+          setBounds(b, x);
+        }
+      }
+
+      function diffuse(b, x, x0, diff, dt) {
+        const a = dt * diff * N * N;
+        linSolve(b, x, x0, a, 1 + 4 * a);
+      }
+
+      function advect(b, d, d0, uField, vField, dt) {
+        const dt0 = dt * N;
+
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            let x = i - dt0 * uField[ix(i, j)];
+            let y = j - dt0 * vField[ix(i, j)];
+
+            x = clamp(x, 0.5, N + 0.5);
+            y = clamp(y, 0.5, N + 0.5);
+
+            const i0 = Math.floor(x);
+            const i1 = i0 + 1;
+            const j0 = Math.floor(y);
+            const j1 = j0 + 1;
+
+            const s1 = x - i0;
+            const s0 = 1 - s1;
+            const t1 = y - j0;
+            const t0 = 1 - t1;
+
+            d[ix(i, j)] =
+              s0 * (t0 * d0[ix(i0, j0)] + t1 * d0[ix(i0, j1)]) +
+              s1 * (t0 * d0[ix(i1, j0)] + t1 * d0[ix(i1, j1)]);
+          }
+        }
+
+        setBounds(b, d);
+      }
+
+      function project(uField, vField, p, div) {
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            div[ix(i, j)] =
+              -0.5 *
+              (uField[ix(i + 1, j)] - uField[ix(i - 1, j)] + vField[ix(i, j + 1)] - vField[ix(i, j - 1)]) /
+              N;
+            p[ix(i, j)] = 0;
+          }
+        }
+
+        setBounds(0, div);
+        setBounds(0, p);
+        linSolve(0, p, div, 1, 4);
+
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            uField[ix(i, j)] -= 0.5 * N * (p[ix(i + 1, j)] - p[ix(i - 1, j)]);
+            vField[ix(i, j)] -= 0.5 * N * (p[ix(i, j + 1)] - p[ix(i, j - 1)]);
+          }
+        }
+
+        setBounds(1, uField);
+        setBounds(2, vField);
+      }
+
+      function applyBuoyancy() {
+        if (!buoyancyEnabled) return;
+
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            const k = ix(i, j);
+            const density = (densR[k] + densG[k] + densB[k]) * 0.33;
+            v[k] -= density * 0.015;
+          }
+        }
+      }
+
+      function computeCurl() {
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            curl[ix(i, j)] =
+              0.5 *
+              (v[ix(i + 1, j)] - v[ix(i - 1, j)] - u[ix(i, j + 1)] + u[ix(i, j - 1)]);
+          }
+        }
+      }
+
+      function applyVorticityConfinement() {
+        computeCurl();
+
+        for (let j = 2; j < N; j += 1) {
+          for (let i = 2; i < N; i += 1) {
+            const k = ix(i, j);
+
+            const left = Math.abs(curl[ix(i - 1, j)]);
+            const right = Math.abs(curl[ix(i + 1, j)]);
+            const down = Math.abs(curl[ix(i, j - 1)]);
+            const up = Math.abs(curl[ix(i, j + 1)]);
+
+            let dx = right - left;
+            let dy = up - down;
+            const len = Math.hypot(dx, dy) + 1e-5;
+            dx /= len;
+            dy /= len;
+
+            const force = 2.1 * curl[k];
+            u[k] += dy * force * DT;
+            v[k] -= dx * force * DT;
+          }
+        }
+      }
+
+      function injectSplat() {
+        if (!pointer.down) return;
+
+        const gx = clamp(Math.floor((pointer.x / width) * N) + 1, 1, N);
+        const gy = clamp(Math.floor((pointer.y / height) * N) + 1, 1, N);
+
+        const dx = pointer.x - pointer.px;
+        const dy = pointer.y - pointer.py;
+
+        pointer.hue = (pointer.hue + 1.8) % 360;
+        const h = pointer.hue;
+        const sat = 0.85;
+        const light = 0.6;
+
+        function hslToRgb(hh, s, l) {
+          const c = (1 - Math.abs(2 * l - 1)) * s;
+          const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
+          const m = l - c / 2;
+          let r = 0,
+            g = 0,
+            b = 0;
+          if (hh < 60) [r, g, b] = [c, x, 0];
+          else if (hh < 120) [r, g, b] = [x, c, 0];
+          else if (hh < 180) [r, g, b] = [0, c, x];
+          else if (hh < 240) [r, g, b] = [0, x, c];
+          else if (hh < 300) [r, g, b] = [x, 0, c];
+          else [r, g, b] = [c, 0, x];
+          return [r + m, g + m, b + m];
+        }
+
+        const [cr, cg, cb] = hslToRgb(h, sat, light);
+
+        for (let oy = -3; oy <= 3; oy += 1) {
+          for (let ox = -3; ox <= 3; ox += 1) {
+            const x = clamp(gx + ox, 1, N);
+            const y = clamp(gy + oy, 1, N);
+            const falloff = 1 - Math.min(1, (ox * ox + oy * oy) / 12);
+            const k = ix(x, y);
+
+            densR[k] += cr * 14 * falloff;
+            densG[k] += cg * 14 * falloff;
+            densB[k] += cb * 14 * falloff;
+
+            u[k] += dx * 0.17 * falloff;
+            v[k] += dy * 0.17 * falloff;
+          }
+        }
+
+        pointer.px = pointer.x;
+        pointer.py = pointer.y;
+      }
+
+      function fadeDensities() {
+        for (let i = 0; i < SIZE; i += 1) {
+          densR[i] *= 0.994;
+          densG[i] *= 0.994;
+          densB[i] *= 0.994;
+        }
+      }
+
+      function fluidStep() {
+        injectSplat();
+        applyBuoyancy();
+        applyVorticityConfinement();
+
+        uPrev.set(u);
+        diffuse(1, u, uPrev, VISC, DT);
+
+        vPrev.set(v);
+        diffuse(2, v, vPrev, VISC, DT);
+
+        project(u, v, uPrev, vPrev);
+
+        uPrev.set(u);
+        vPrev.set(v);
+        advect(1, u, uPrev, uPrev, vPrev, DT);
+        advect(2, v, vPrev, uPrev, vPrev, DT);
+
+        project(u, v, uPrev, vPrev);
+
+        densRPrev.set(densR);
+        diffuse(0, densR, densRPrev, DIFF, DT);
+        densRPrev.set(densR);
+        advect(0, densR, densRPrev, u, v, DT);
+
+        densGPrev.set(densG);
+        diffuse(0, densG, densGPrev, DIFF, DT);
+        densGPrev.set(densG);
+        advect(0, densG, densGPrev, u, v, DT);
+
+        densBPrev.set(densB);
+        diffuse(0, densB, densBPrev, DIFF, DT);
+        densBPrev.set(densB);
+        advect(0, densB, densBPrev, u, v, DT);
+
+        fadeDensities();
+      }
+
+      function draw() {
+        ctx.fillStyle = "#040a17";
+        ctx.fillRect(0, 0, width, height);
+
+        for (let j = 1; j <= N; j += 1) {
+          for (let i = 1; i <= N; i += 1) {
+            const k = ix(i, j);
+
+            const r = clamp(densR[k] * 20, 0, 255);
+            const g = clamp(densG[k] * 20, 0, 255);
+            const b = clamp(densB[k] * 20, 0, 255);
+
+            if (r + g + b < 4) continue;
+
+            ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+            ctx.fillRect((i - 1) * cellW, (j - 1) * cellH, cellW + 1, cellH + 1);
+          }
+        }
+      }
+
+      function frame() {
+        for (let i = 0; i < 2; i += 1) {
+          fluidStep();
+        }
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function reset() {
+        u.fill(0);
+        v.fill(0);
+        uPrev.fill(0);
+        vPrev.fill(0);
+        densR.fill(0);
+        densG.fill(0);
+        densB.fill(0);
+        densRPrev.fill(0);
+        densGPrev.fill(0);
+        densBPrev.fill(0);
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        cellW = width / N;
+        cellH = height / N;
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.x = clientX;
+        pointer.y = clientY;
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        setPointer(event.clientX, event.clientY);
+        pointer.px = pointer.x;
+        pointer.py = pointer.y;
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          pointer.down = true;
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+          pointer.px = pointer.x;
+          pointer.py = pointer.y;
+        },
+        { passive: true }
+      );
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") reset();
+        if (key === "b") buoyancyEnabled = !buoyancyEnabled;
+      });
+
+      resize();
+      reset();
+      frame();
+    </script>
+  </body>
+</html>

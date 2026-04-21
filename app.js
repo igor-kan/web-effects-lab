@@ -186,6 +186,39 @@ const demos = [
     tags: ["3D", "smoke", "steam", "simulation"],
     file: "demos/steam-plume-3d.html",
   },
+  {
+    id: "curl-noise-flowfield",
+    title: "Curl Noise Flowfield",
+    stack: "Particle Advection",
+    level: "Advanced",
+    description:
+      "Incompressible-looking flow field from the curl of a scalar potential, driving dense particle trails.",
+    interaction: "Drag to locally energize flow, press R to reseed, and press G to toggle glow.",
+    tags: ["2D", "smoke", "flow", "simulation"],
+    file: "demos/curl-noise-flowfield.html",
+  },
+  {
+    id: "stable-fluid-smoke-lab",
+    title: "Stable Fluid Smoke Lab",
+    stack: "Grid Navier-Stokes",
+    level: "Advanced",
+    description:
+      "Stable fluid variant with pressure projection, buoyancy, vorticity confinement, and colorful smoke advection.",
+    interaction: "Drag to inject smoke, press R to reset, and press B to toggle buoyancy.",
+    tags: ["2D", "fluid", "smoke", "simulation"],
+    file: "demos/stable-fluid-smoke-lab.html",
+  },
+  {
+    id: "volumetric-light-shafts",
+    title: "Volumetric Light Shafts",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Procedural atmospheric shafts using radial sampling through animated occluders and dynamic light bloom.",
+    interaction: "Move pointer to steer the light source and reshape visible rays.",
+    tags: ["2D", "light", "shader", "animation"],
+    file: "demos/volumetric-light-shafts.html",
+  },
 ];
 
 const state = {

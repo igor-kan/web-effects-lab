@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Volumetric Light Shafts</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #040712;
+        color: #e8f4ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 460px;
+        background: rgba(8, 14, 28, 0.58);
+        border: 1px solid rgba(149, 203, 255, 0.3);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #96d1ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Volumetric Light Shafts</h1>
+      <p>Move pointer to steer the light source and reveal atmospheric shafts through procedural occluders.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const gl = canvas.getContext("webgl");
+
+      if (!gl) {
+        alert("WebGL not available.");
+        throw new Error("WebGL unavailable");
+      }
+
+      const vertexSource = `
+        attribute vec2 position;
+        varying vec2 vUv;
+
+        void main() {
+          vUv = position * 0.5 + 0.5;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
+        precision mediump float;
+        #endif
+
+        varying vec2 vUv;
+        uniform vec2 uResolution;
+        uniform vec2 uLight;
+        uniform float uTime;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+
+          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+        }
+
+        float fbm(vec2 p) {
+          float sum = 0.0;
+          float amp = 0.5;
+          for (int i = 0; i < 5; i++) {
+            sum += amp * noise(p);
+            p *= 2.03;
+            amp *= 0.5;
+          }
+          return sum;
+        }
+
+        float occluders(vec2 p, float t) {
+          float n = fbm(p * vec2(2.2, 1.8) + vec2(t * 0.04, -t * 0.03));
+          float clouds = smoothstep(0.42, 0.68, n);
+
+          float arch = smoothstep(0.52, 0.05, abs(p.x - 0.5)) * smoothstep(1.0, 0.3, p.y);
+          arch *= smoothstep(0.38, 0.7, fbm(p * 4.0 + t * 0.1));
+
+          float rocks = 0.0;
+          for (int i = 0; i < 4; i++) {
+            float fi = float(i);
+            vec2 c = vec2(0.2 + fi * 0.22 + sin(t * 0.2 + fi) * 0.04, 0.72 + cos(t * 0.17 + fi) * 0.06);
+            float r = 0.12 + 0.02 * sin(t * 0.7 + fi * 2.0);
+            float d = length(p - c);
+            rocks += smoothstep(r, r - 0.02, d);
+          }
+
+          return clamp(clouds * 0.72 + arch * 0.6 + rocks * 0.75, 0.0, 1.0);
+        }
+
+        void main() {
+          vec2 uv = vUv;
+          vec2 aspectUv = uv;
+          aspectUv.x *= uResolution.x / uResolution.y;
+
+          float t = uTime;
+          vec2 light = uLight;
+
+          vec3 base = mix(vec3(0.03, 0.06, 0.14), vec3(0.09, 0.14, 0.24), uv.y);
+          base += 0.04 * fbm(aspectUv * 3.0 + vec2(t * 0.03, t * 0.02));
+
+          float occ = occluders(uv, t);
+          vec3 color = base * (1.0 - occ * 0.65);
+
+          vec2 toLight = light - uv;
+          float dist = length(toLight) + 1e-5;
+          vec2 dir = toLight / dist;
+
+          float shafts = 0.0;
+          float decay = 1.0;
+          vec2 sampleUv = uv;
+
+          for (int i = 0; i < 52; i++) {
+            sampleUv += dir * 0.012;
+            float occSample = occluders(sampleUv, t);
+            float energy = (1.0 - occSample) * decay;
+            shafts += energy;
+            decay *= 0.968;
+          }
+
+          shafts *= 0.019;
+          float radial = smoothstep(0.8, 0.0, dist);
+          vec3 shaftColor = mix(vec3(0.35, 0.58, 0.95), vec3(1.0, 0.86, 0.56), 0.5 + 0.5 * sin(t * 0.5));
+          color += shafts * shaftColor * radial * 1.7;
+
+          float bloom = exp(-dist * 18.0);
+          color += bloom * vec3(1.0, 0.95, 0.8) * 1.3;
+
+          float vignette = smoothstep(0.95, 0.2, distance(uv, vec2(0.5)));
+          color *= vignette + 0.25;
+
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `;
+
+      function compile(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(shader));
+        }
+        return shader;
+      }
+
+      const program = gl.createProgram();
+      gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
+      gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program));
+      }
+
+      const quad = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      const positionLoc = gl.getAttribLocation(program, "position");
+      const resLoc = gl.getUniformLocation(program, "uResolution");
+      const lightLoc = gl.getUniformLocation(program, "uLight");
+      const timeLoc = gl.getUniformLocation(program, "uTime");
+
+      const pointer = { x: 0.5, y: 0.25, tx: 0.5, ty: 0.25 };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.tx = clientX / window.innerWidth;
+        pointer.ty = clientY / window.innerHeight;
+      }
+
+      function render(now) {
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        gl.useProgram(program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.enableVertexAttribArray(positionLoc);
+        gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2f(resLoc, canvas.width, canvas.height);
+        gl.uniform2f(lightLoc, pointer.x, pointer.y);
+        gl.uniform1f(timeLoc, now * 0.001);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(render);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("mousemove", (event) => setPointer(event.clientX, event.clientY));
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      resize();
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

@@ -21,6 +21,9 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Reaction-diffusion chemistry simulation
 - Fire simulation with embers and wind
 - 3D steam/smoke plume particle simulation
+- Curl-noise incompressible flowfield
+- Stable-fluid smoke simulation variant
+- Volumetric light-shaft shader scene
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -72,6 +75,9 @@ web-effects-lab/
     reaction-diffusion-lab.html
     fire-simulation-lab.html
     steam-plume-3d.html
+    curl-noise-flowfield.html
+    stable-fluid-smoke-lab.html
+    volumetric-light-shafts.html
 ```
 
 ## Notes

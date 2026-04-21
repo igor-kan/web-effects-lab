@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Curl Noise Flowfield</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #050a14;
+        color: #e8f7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 5;
+        max-width: 470px;
+        background: rgba(7, 16, 31, 0.58);
+        border: 1px solid rgba(143, 218, 255, 0.3);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+        opacity: 0.92;
+      }
+
+      .home {
+        color: #93dfff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Curl Noise Flowfield</h1>
+      <p>Incompressible flow-inspired particles (curl of a scalar potential field). Drag to locally energize flow.</p>
+      <p>Press <strong>R</strong> to reseed particles and <strong>G</strong> to toggle glow.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      const PARTICLE_COUNT = 9000;
+      const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        age: Math.random() * 260,
+      }));
+
+      const pointer = { x: 0.5, y: 0.5, down: false };
+      let glow = true;
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function hash(x, y) {
+        const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+        return s - Math.floor(s);
+      }
+
+      function smooth(t) {
+        return t * t * (3 - 2 * t);
+      }
+
+      function valueNoise(x, y) {
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const fx = x - x0;
+        const fy = y - y0;
+
+        const v00 = hash(x0, y0);
+        const v10 = hash(x0 + 1, y0);
+        const v01 = hash(x0, y0 + 1);
+        const v11 = hash(x0 + 1, y0 + 1);
+
+        const sx = smooth(fx);
+        const sy = smooth(fy);
+
+        const ix0 = v00 + (v10 - v00) * sx;
+        const ix1 = v01 + (v11 - v01) * sx;
+        return ix0 + (ix1 - ix0) * sy;
+      }
+
+      function fbm(x, y, t) {
+        let sum = 0;
+        let amp = 0.5;
+        let freq = 1;
+
+        for (let i = 0; i < 4; i += 1) {
+          sum += amp * valueNoise(x * freq + t * 0.32 * freq, y * freq - t * 0.27 * freq);
+          freq *= 2.03;
+          amp *= 0.5;
+        }
+
+        return sum;
+      }
+
+      function potential(x, y, time) {
+        const px = x * 3.8;
+        const py = y * 3.8;
+
+        let psi = fbm(px, py, time);
+        psi += 0.55 * fbm(px * 0.6 - 6.0, py * 0.6 + 3.0, time * 0.85);
+
+        const dx = x - pointer.x;
+        const dy = y - pointer.y;
+        const d2 = dx * dx + dy * dy;
+        const falloff = Math.exp(-d2 * 90.0);
+        psi += (pointer.down ? 1.2 : 0.35) * falloff;
+
+        return psi;
+      }
+
+      function velocity(x, y, time) {
+        const e = 0.0017;
+
+        const dpsiDy = (potential(x, y + e, time) - potential(x, y - e, time)) / (2 * e);
+        const dpsiDx = (potential(x + e, y, time) - potential(x - e, y, time)) / (2 * e);
+
+        return { vx: dpsiDy, vy: -dpsiDx };
+      }
+
+      function reseed() {
+        for (const p of particles) {
+          p.x = Math.random();
+          p.y = Math.random();
+          p.age = Math.random() * 240;
+        }
+      }
+
+      function setPointer(clientX, clientY) {
+        pointer.x = clientX / width;
+        pointer.y = clientY / height;
+      }
+
+      function tick(now) {
+        const t = now * 0.001;
+
+        ctx.fillStyle = "rgba(4, 10, 20, 0.1)";
+        ctx.fillRect(0, 0, width, height);
+
+        if (glow) {
+          ctx.globalCompositeOperation = "lighter";
+        } else {
+          ctx.globalCompositeOperation = "source-over";
+        }
+
+        for (const p of particles) {
+          p.age += 1;
+
+          const { vx, vy } = velocity(p.x, p.y, t);
+          const speed = 0.0018 + (pointer.down ? 0.0008 : 0);
+
+          const px = p.x;
+          const py = p.y;
+
+          p.x += vx * speed;
+          p.y += vy * speed;
+
+          if (p.age > 300 || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
+            p.x = Math.random();
+            p.y = Math.random();
+            p.age = 0;
+            continue;
+          }
+
+          const sx0 = px * width;
+          const sy0 = py * height;
+          const sx1 = p.x * width;
+          const sy1 = p.y * height;
+
+          const hue = 180 + ((vx * 130 + vy * 90) % 70);
+          const alpha = glow ? 0.08 : 0.19;
+
+          ctx.strokeStyle = `hsla(${hue}, 95%, 68%, ${alpha})`;
+          ctx.lineWidth = glow ? 1.15 : 0.65;
+          ctx.beginPath();
+          ctx.moveTo(sx0, sy0);
+          ctx.lineTo(sx1, sy1);
+          ctx.stroke();
+        }
+
+        ctx.globalCompositeOperation = "source-over";
+        requestAnimationFrame(tick);
+      }
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        setPointer(event.clientX, event.clientY);
+      });
+      window.addEventListener("mousemove", (event) => {
+        setPointer(event.clientX, event.clientY);
+      });
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          pointer.down = true;
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          setPointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") reseed();
+        if (key === "g") glow = !glow;
+      });
+
+      resize();
+      ctx.fillStyle = "#050a14";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>

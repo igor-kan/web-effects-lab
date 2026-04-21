@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyperspace Starfield</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #030711;
+        color: #edf6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 520px;
+        background: rgba(6, 15, 29, 0.62);
+        border: 1px solid rgba(147, 213, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9bd6ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Hyperspace Starfield</h1>
+      <p>
+        Deep-space streak renderer with perspective star trails and interactive warp acceleration.
+      </p>
+      <p>Move pointer to steer vanishing point, click for burst, press <strong>W</strong> warp lock, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let centerX = width * 0.5;
+      let centerY = height * 0.5;
+
+      const STAR_COUNT = 1700;
+      const stars = new Array(STAR_COUNT);
+
+      let baseSpeed = 22;
+      let burst = 0;
+      let warpLock = false;
+      let prevTime = performance.now();
+
+      const pointer = {
+        tx: centerX,
+        ty: centerY,
+        x: centerX,
+        y: centerY,
+      };
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function resetStar(star, deep = false) {
+        const spread = Math.max(width, height) * 0.95;
+        star.x = rand(-spread, spread);
+        star.y = rand(-spread, spread);
+        star.z = deep ? rand(40, 1600) : rand(200, 1600);
+        star.pz = star.z;
+        star.hue = rand(180, 245);
+      }
+
+      function initStars() {
+        for (let i = 0; i < STAR_COUNT; i += 1) {
+          stars[i] = {};
+          resetStar(stars[i], true);
+        }
+      }
+
+      function updatePointer(clientX, clientY) {
+        pointer.tx = clientX;
+        pointer.ty = clientY;
+      }
+
+      function render(now) {
+        const dt = Math.min(0.05, (now - prevTime) * 0.001);
+        prevTime = now;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+        centerX = pointer.x;
+        centerY = pointer.y;
+
+        burst = Math.max(0, burst - dt * 0.55);
+
+        const pointerBoost = ((pointer.tx / width) * 2 - 1) * 2.5;
+        const speed = baseSpeed + (warpLock ? 42 : 0) + burst * 120 + pointerBoost;
+
+        ctx.fillStyle = "rgba(3, 7, 17, 0.28)";
+        ctx.fillRect(0, 0, width, height);
+
+        const f = Math.min(width, height) * 0.86;
+
+        for (const star of stars) {
+          star.pz = star.z;
+          star.z -= speed * dt * 32;
+
+          if (star.z < 1) {
+            resetStar(star);
+            continue;
+          }
+
+          const x = centerX + (star.x / star.z) * f;
+          const y = centerY + (star.y / star.z) * f;
+          const px = centerX + (star.x / star.pz) * f;
+          const py = centerY + (star.y / star.pz) * f;
+
+          if (x < -120 || x > width + 120 || y < -120 || y > height + 120) {
+            resetStar(star);
+            continue;
+          }
+
+          const depth = 1 - star.z / 1600;
+          const alpha = 0.2 + depth * 0.8;
+          const widthPx = 0.5 + depth * 2.3;
+
+          ctx.strokeStyle = `hsla(${star.hue + depth * 25}, 95%, ${72 + depth * 18}%, ${alpha})`;
+          ctx.lineWidth = widthPx;
+          ctx.shadowBlur = 12 + depth * 22;
+          ctx.shadowColor = `hsla(${star.hue}, 100%, 70%, ${0.8 * alpha})`;
+
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+
+          if (depth > 0.86) {
+            ctx.fillStyle = `rgba(230, 247, 255, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(x, y, widthPx * 0.75, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.shadowBlur = 0;
+        const coreRadius = 3 + burst * 6;
+        const core = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 28 + burst * 35);
+        core.addColorStop(0, `rgba(176, 236, 255, ${0.85 + burst * 0.1})`);
+        core.addColorStop(1, "rgba(50, 98, 160, 0)");
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 28 + burst * 35, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(226, 246, 255, 0.9)";
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        requestAnimationFrame(render);
+      }
+
+      window.addEventListener("mousemove", (event) => {
+        updatePointer(event.clientX, event.clientY);
+      });
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          updatePointer(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("click", () => {
+        burst = Math.min(1.2, burst + 0.45);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "w") {
+          warpLock = !warpLock;
+        }
+        if (key === "r") {
+          initStars();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        resize();
+      });
+
+      resize();
+      initStars();
+      ctx.fillStyle = "#030711";
+      ctx.fillRect(0, 0, width, height);
+      requestAnimationFrame(render);
+    </script>
+  </body>
+</html>

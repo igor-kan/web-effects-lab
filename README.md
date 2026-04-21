@@ -34,6 +34,10 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Fireworks particle simulation
 - 3D terrain wave simulation
 - Kaleidoscope mandala shader
+- Crystal growth DLA simulation
+- Plasma arc reactor lightning field
+- Metaball contour marching-squares lab
+- Hyperspace starfield warp tunnel
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -113,6 +117,10 @@ web-effects-lab/
     fireworks-night-sky.html
     terrain-waves-3d.html
     kaleidoscope-mandala-shader.html
+    crystal-growth-dla.html
+    plasma-arc-reactor.html
+    metaball-contour-lab.html
+    hyperspace-starfield.html
 ```
 
 ## Notes

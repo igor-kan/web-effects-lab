@@ -329,6 +329,50 @@ const demos = [
     tags: ["2D", "shader", "kaleidoscope", "animation"],
     file: "demos/kaleidoscope-mandala-shader.html",
   },
+  {
+    id: "crystal-growth-dla",
+    title: "Crystal Growth DLA",
+    stack: "Diffusion-Limited Aggregation",
+    level: "Advanced",
+    description:
+      "Particle-walker crystal accretion simulation that grows branching aggregates from seeded nuclei.",
+    interaction: "Click to add seeds, press R to reset, and press F for fast growth mode.",
+    tags: ["2D", "simulation", "crystal", "interactive"],
+    file: "demos/crystal-growth-dla.html",
+  },
+  {
+    id: "plasma-arc-reactor",
+    title: "Plasma Arc Reactor",
+    stack: "Canvas Field FX",
+    level: "Advanced",
+    description:
+      "Orbiting energy nodes connect through branching electrical arcs with overload bursts and glow trails.",
+    interaction: "Move pointer to bend arcs, click to overload, R to regenerate nodes, S for slow mode.",
+    tags: ["2D", "lightning", "plasma", "interactive"],
+    file: "demos/plasma-arc-reactor.html",
+  },
+  {
+    id: "metaball-contour-lab",
+    title: "Metaball Contour Lab",
+    stack: "Marching Squares",
+    level: "Advanced",
+    description:
+      "Dynamic metaball scalar field visualized as animated contour isolines with live pointer injection.",
+    interaction: "Move pointer to influence field, click to add blobs, C to clear extras, R to reseed.",
+    tags: ["2D", "metaball", "simulation", "interactive"],
+    file: "demos/metaball-contour-lab.html",
+  },
+  {
+    id: "hyperspace-starfield",
+    title: "Hyperspace Starfield",
+    stack: "3D Projection Trails",
+    level: "Advanced",
+    description:
+      "Perspective star tunnel with streaking particles, steerable vanishing point, and burst warp acceleration.",
+    interaction: "Move pointer to steer, click burst, W toggles warp lock, and R resets the field.",
+    tags: ["3D", "space", "particles", "interactive"],
+    file: "demos/hyperspace-starfield.html",
+  },
 ];
 
 const state = {

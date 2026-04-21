@@ -19,6 +19,8 @@ A standalone website repository packed with interactive, downloadable visual eff
 - Holographic shader-relief model (Three.js + GLSL)
 - Flocking boids swarm simulation
 - Reaction-diffusion chemistry simulation
+- Fire simulation with embers and wind
+- 3D steam/smoke plume particle simulation
 
 Each demo is a single HTML file under [`demos/`](./demos), so you can copy or remix any effect fast.
 
@@ -68,6 +70,8 @@ web-effects-lab/
     holographic-relief-model.html
     boids-swarm-lab.html
     reaction-diffusion-lab.html
+    fire-simulation-lab.html
+    steam-plume-3d.html
 ```
 
 ## Notes

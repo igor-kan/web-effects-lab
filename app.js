@@ -160,9 +160,31 @@ const demos = [
     level: "Advanced",
     description:
       "Gray-Scott style reaction-diffusion pattern generator with live reagent injection and palette cycling.",
-    interaction: "Drag to inject reagent, press R to reset, and press T to switch palettes.",
+    interaction: "Drag to inject reagent, press R to reset, T for palette, and P to pause.",
     tags: ["2D", "simulation", "chemistry", "interactive"],
     file: "demos/reaction-diffusion-lab.html",
+  },
+  {
+    id: "fire-simulation-lab",
+    title: "Fire Simulation Lab",
+    stack: "Heat Field Simulation",
+    level: "Advanced",
+    description:
+      "Advection-style fire simulation with turbulence, cooling, and spark embers over a dynamic heat field.",
+    interaction: "Drag to inject flame, press W to toggle wind, and press R to reset.",
+    tags: ["2D", "fire", "simulation", "interactive"],
+    file: "demos/fire-simulation-lab.html",
+  },
+  {
+    id: "steam-plume-3d",
+    title: "Steam Plume 3D",
+    stack: "Three.js Particles",
+    level: "Advanced",
+    description:
+      "Volumetric-style 3D steam/smoke plume with layered particles, turbulence, and orbit camera controls.",
+    interaction: "Drag to orbit, wheel to zoom, press S for density, and press W for wind.",
+    tags: ["3D", "smoke", "steam", "simulation"],
+    file: "demos/steam-plume-3d.html",
   },
 ];
 

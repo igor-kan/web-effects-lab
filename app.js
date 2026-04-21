@@ -549,6 +549,50 @@ const demos = [
     tags: ["2D", "smoke", "ash", "simulation"],
     file: "demos/ash-plume-simulation.html",
   },
+  {
+    id: "dust-devil-vortex",
+    title: "Dust Devil Vortex",
+    stack: "Turbulent Particle Vortex",
+    level: "Advanced",
+    description:
+      "Desert dust vortex effect with radial suction, swirling advection, and wind-sheared particulate trails.",
+    interaction: "Move pointer to steer vortex, click gust burst, W changes wind, G glow, and R resets.",
+    tags: ["2D", "particles", "vortex", "interactive"],
+    file: "demos/dust-devil-vortex.html",
+  },
+  {
+    id: "frost-crystal-growth",
+    title: "Frost Crystal Growth",
+    stack: "Cellular Ice Growth",
+    level: "Advanced",
+    description:
+      "Branching frost propagation simulation with moisture gradients, cooling dynamics, and crystal bloom.",
+    interaction: "Click/drag to seed frost, C triggers cold snap, and R resets the pane.",
+    tags: ["2D", "simulation", "crystal", "interactive"],
+    file: "demos/frost-crystal-growth.html",
+  },
+  {
+    id: "hologram-particle-statue",
+    title: "Hologram Particle Statue",
+    stack: "Three.js Point Cloud",
+    level: "Advanced",
+    description:
+      "Holographic particle statue with scanline sweeps, glitch offsets, and orbit camera inspection.",
+    interaction: "Drag to orbit, wheel to zoom, click glitch burst, A auto-spin, and R reseed cloud.",
+    tags: ["3D", "hologram", "particles", "interactive"],
+    file: "demos/hologram-particle-statue.html",
+  },
+  {
+    id: "lava-flow-topography",
+    title: "Lava Flow Topography",
+    stack: "Terrain Heat Simulation",
+    level: "Advanced",
+    description:
+      "Molten lava spread model over synthetic terrain with slope-driven flow, cooling crust, and vent injection.",
+    interaction: "Click/drag to open vents, F adds fissures, P pauses, and R rebuilds terrain.",
+    tags: ["2D", "lava", "simulation", "interactive"],
+    file: "demos/lava-flow-topography.html",
+  },
 ];
 
 const state = {

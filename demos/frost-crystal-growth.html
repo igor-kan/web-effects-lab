@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frost Crystal Growth</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #050a14;
+        color: #ebf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 9;
+        max-width: 560px;
+        background: rgba(8, 16, 30, 0.62);
+        border: 1px solid rgba(146, 212, 255, 0.34);
+        border-radius: 10px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+
+      .hud h1 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .hud p {
+        margin: 6px 0 0;
+        font-size: 0.84rem;
+        line-height: 1.36;
+      }
+
+      .home {
+        color: #9fd8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Frost Crystal Growth</h1>
+      <p>
+        Cellular frost growth simulation with branching crystal fronts, cooling gradients, and ice bloom diffusion.
+      </p>
+      <p>Click to seed frost. Hold drag to paint seeds. <strong>C</strong> cold snap, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d", { alpha: false });
+
+      const W = 280;
+      const H = 170;
+      const SIZE = W * H;
+
+      const low = document.createElement("canvas");
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext("2d", { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let frost = new Float32Array(SIZE);
+      let next = new Float32Array(SIZE);
+      let moisture = new Float32Array(SIZE);
+      let temperature = new Float32Array(SIZE);
+
+      let tick = 0;
+      let coldBoost = 0;
+
+      const pointer = {
+        x: W * 0.5,
+        y: H * 0.5,
+        down: false,
+      };
+
+      function idx(x, y) {
+        return x + y * W;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function toGrid(clientX, clientY) {
+        pointer.x = clamp(Math.floor((clientX / width) * W), 1, W - 2);
+        pointer.y = clamp(Math.floor((clientY / height) * H), 1, H - 2);
+      }
+
+      function reset() {
+        frost.fill(0);
+        next.fill(0);
+
+        for (let y = 0; y < H; y += 1) {
+          for (let x = 0; x < W; x += 1) {
+            const i = idx(x, y);
+            const m = 0.65 + Math.sin(x * 0.05) * 0.08 + Math.cos(y * 0.04) * 0.08 + Math.random() * 0.2;
+            moisture[i] = clamp(m, 0.2, 1.2);
+            temperature[i] = clamp(0.52 + Math.sin((x + y) * 0.03) * 0.1, 0.25, 0.9);
+          }
+        }
+
+        for (let i = 0; i < 24; i += 1) {
+          const x = (Math.random() * (W - 2) + 1) | 0;
+          const y = (Math.random() * (H - 2) + 1) | 0;
+          frost[idx(x, y)] = 1;
+        }
+      }
+
+      function seed(cx, cy, radius = 3) {
+        for (let oy = -radius; oy <= radius; oy += 1) {
+          for (let ox = -radius; ox <= radius; ox += 1) {
+            if (ox * ox + oy * oy > radius * radius) continue;
+            const x = clamp(cx + ox, 1, W - 2);
+            const y = clamp(cy + oy, 1, H - 2);
+            frost[idx(x, y)] = 1;
+          }
+        }
+      }
+
+      function step() {
+        tick += 1;
+        coldBoost = Math.max(0, coldBoost - 0.004);
+
+        if (pointer.down) {
+          seed(pointer.x, pointer.y, 2);
+        }
+
+        const t = tick * 0.013;
+
+        for (let y = 1; y < H - 1; y += 1) {
+          for (let x = 1; x < W - 1; x += 1) {
+            const i = idx(x, y);
+            const f = frost[i];
+
+            if (f >= 1) {
+              next[i] = 1;
+              moisture[i] *= 0.996;
+              continue;
+            }
+
+            let n = 0;
+            let branches = 0;
+            for (let oy = -1; oy <= 1; oy += 1) {
+              for (let ox = -1; ox <= 1; ox += 1) {
+                if (ox === 0 && oy === 0) continue;
+                const nf = frost[idx(x + ox, y + oy)];
+                if (nf > 0.5) {
+                  n += 1;
+                  if (ox === 0 || oy === 0) branches += 1;
+                }
+              }
+            }
+
+            const humidity = moisture[i];
+            const coldness = 1 - temperature[i] + coldBoost;
+            const flow = Math.sin(x * 0.08 + t) * Math.cos(y * 0.06 - t * 1.3);
+
+            const chance =
+              n * 0.12 + branches * 0.05 + humidity * 0.18 + coldness * 0.24 + Math.max(0, flow) * 0.08;
+
+            if (chance > 0.42 + Math.random() * 0.24) {
+              next[i] = 1;
+              moisture[i] *= 0.88;
+            } else {
+              next[i] = 0;
+            }
+
+            temperature[i] = clamp(temperature[i] + 0.0006 - next[i] * 0.0035, 0.1, 1);
+            moisture[i] = clamp(moisture[i] + 0.0012 - next[i] * 0.0015, 0, 1.25);
+          }
+        }
+
+        [frost, next] = [next, frost];
+      }
+
+      function render() {
+        const px = image.data;
+
+        for (let i = 0; i < SIZE; i += 1) {
+          const f = frost[i];
+          const m = moisture[i];
+          const c = 1 - temperature[i];
+
+          let r = 10 + c * 24;
+          let g = 22 + c * 50;
+          let b = 44 + c * 90;
+
+          if (f > 0.5) {
+            const spark = Math.sin((i % W) * 0.09 + (i / W) * 0.07 + tick * 0.06) * 0.5 + 0.5;
+            r = 166 + spark * 58;
+            g = 214 + spark * 36;
+            b = 244 + spark * 11;
+          } else {
+            r += m * 18;
+            g += m * 26;
+            b += m * 38;
+          }
+
+          const p = i * 4;
+          px[p] = clamp(r, 0, 255);
+          px[p + 1] = clamp(g, 0, 255);
+          px[p + 2] = clamp(b, 0, 255);
+          px[p + 3] = 255;
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      function frame() {
+        for (let i = 0; i < 2; i += 1) {
+          step();
+        }
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("mousemove", (event) => {
+        toGrid(event.clientX, event.clientY);
+      });
+
+      window.addEventListener("mousedown", (event) => {
+        pointer.down = true;
+        toGrid(event.clientX, event.clientY);
+        seed(pointer.x, pointer.y, 3);
+      });
+
+      window.addEventListener("mouseup", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener(
+        "touchstart",
+        (event) => {
+          pointer.down = true;
+          const t = event.touches[0];
+          toGrid(t.clientX, t.clientY);
+          seed(pointer.x, pointer.y, 3);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener(
+        "touchmove",
+        (event) => {
+          const t = event.touches[0];
+          toGrid(t.clientX, t.clientY);
+        },
+        { passive: true }
+      );
+
+      window.addEventListener("touchend", () => {
+        pointer.down = false;
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") reset();
+        if (key === "c") coldBoost = Math.min(0.75, coldBoost + 0.35);
+      });
+
+      resize();
+      reset();
+      frame();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fluid Ink Vortex</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #090f14;
+        color: #ecf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(8, 15, 24, 0.62);
+        border: 1px solid rgba(167, 214, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.35; }
+      .home { color: #8fd4ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Fluid Ink Vortex</h1>
+      <p>Low-res fluid-style dye advection with rotating vortex forces and pointer injection.</p>
+      <p>Drag to inject ink, click impulse, <strong>C</strong> palette, <strong>W</strong> wind mode, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const W = 220;
+      const H = 140;
+      const N = W * H;
+
+      const low = document.createElement('canvas');
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext('2d', { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let palette = 0;
+      let windMode = 1;
+      let burst = 0;
+      let time = 0;
+
+      let vx = new Float32Array(N);
+      let vy = new Float32Array(N);
+      let nvx = new Float32Array(N);
+      let nvy = new Float32Array(N);
+
+      let r = new Float32Array(N);
+      let g = new Float32Array(N);
+      let b = new Float32Array(N);
+      let nr = new Float32Array(N);
+      let ng = new Float32Array(N);
+      let nb = new Float32Array(N);
+
+      const pointer = { x: W * 0.5, y: H * 0.55, px: W * 0.5, py: H * 0.55, down: false };
+
+      function idx(x, y) {
+        return x + y * W;
+      }
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function reset() {
+        vx.fill(0); vy.fill(0); nvx.fill(0); nvy.fill(0);
+        r.fill(0); g.fill(0); b.fill(0); nr.fill(0); ng.fill(0); nb.fill(0);
+      }
+
+      function sample(field, x, y) {
+        x = clamp(x, 0, W - 1);
+        y = clamp(y, 0, H - 1);
+
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const x1 = clamp(x0 + 1, 0, W - 1);
+        const y1 = clamp(y0 + 1, 0, H - 1);
+        const tx = x - x0;
+        const ty = y - y0;
+
+        const i00 = idx(x0, y0);
+        const i10 = idx(x1, y0);
+        const i01 = idx(x0, y1);
+        const i11 = idx(x1, y1);
+
+        const a = field[i00] * (1 - tx) + field[i10] * tx;
+        const c = field[i01] * (1 - tx) + field[i11] * tx;
+        return a * (1 - ty) + c * ty;
+      }
+
+      function inject(cx, cy, amount = 1.4) {
+        const radius = 7;
+        for (let oy = -radius; oy <= radius; oy += 1) {
+          for (let ox = -radius; ox <= radius; ox += 1) {
+            const d2 = ox * ox + oy * oy;
+            if (d2 > radius * radius) continue;
+            const x = clamp((cx + ox) | 0, 1, W - 2);
+            const y = clamp((cy + oy) | 0, 1, H - 2);
+            const i = idx(x, y);
+            const f = 1 - d2 / (radius * radius + 1);
+
+            const swirlX = -(y - cy);
+            const swirlY = x - cx;
+            vx[i] += swirlX * 0.02 * f;
+            vy[i] += swirlY * 0.02 * f;
+
+            if (palette === 0) {
+              r[i] += 0.15 * f * amount;
+              g[i] += 0.65 * f * amount;
+              b[i] += 1.0 * f * amount;
+            } else if (palette === 1) {
+              r[i] += 1.0 * f * amount;
+              g[i] += 0.4 * f * amount;
+              b[i] += 0.2 * f * amount;
+            } else if (palette === 2) {
+              r[i] += 0.4 * f * amount;
+              g[i] += 1.0 * f * amount;
+              b[i] += 0.62 * f * amount;
+            } else {
+              r[i] += 0.95 * f * amount;
+              g[i] += 0.56 * f * amount;
+              b[i] += 1.0 * f * amount;
+            }
+          }
+        }
+      }
+
+      function wind() {
+        if (windMode === 0) return -0.0005;
+        if (windMode === 1) return 0;
+        return 0.0005;
+      }
+
+      function step(dt) {
+        burst = Math.max(0, burst - dt * 0.8);
+
+        const w = wind();
+        const cx = W * 0.5 + Math.cos(time * 0.4) * W * 0.16;
+        const cy = H * 0.5 + Math.sin(time * 0.33) * H * 0.16;
+
+        for (let y = 1; y < H - 1; y += 1) {
+          for (let x = 1; x < W - 1; x += 1) {
+            const i = idx(x, y);
+            const px = x - vx[i] * 0.95;
+            const py = y - vy[i] * 0.95;
+
+            nvx[i] = sample(vx, px, py);
+            nvy[i] = sample(vy, px, py);
+
+            nr[i] = sample(r, px, py) * 0.996;
+            ng[i] = sample(g, px, py) * 0.996;
+            nb[i] = sample(b, px, py) * 0.996;
+
+            const dx = x - cx;
+            const dy = y - cy;
+            const d = Math.hypot(dx, dy) + 1;
+            const swirl = (0.09 + burst * 0.07) / d;
+            nvx[i] += -dy * swirl;
+            nvy[i] += dx * swirl;
+
+            const pdx = x - pointer.x;
+            const pdy = y - pointer.y;
+            const pd = Math.hypot(pdx, pdy) + 1;
+            const pointerSwirl = pointer.down ? 0.18 : 0.06;
+            const pF = pointerSwirl / pd;
+            nvx[i] += -pdy * pF;
+            nvy[i] += pdx * pF;
+
+            nvx[i] += w * (1 - y / H) * 40;
+
+            const lapx = vx[idx(x - 1, y)] + vx[idx(x + 1, y)] + vx[idx(x, y - 1)] + vx[idx(x, y + 1)] - vx[i] * 4;
+            const lapy = vy[idx(x - 1, y)] + vy[idx(x + 1, y)] + vy[idx(x, y - 1)] + vy[idx(x, y + 1)] - vy[i] * 4;
+            nvx[i] += lapx * 0.03;
+            nvy[i] += lapy * 0.03;
+
+            nvx[i] *= 0.992;
+            nvy[i] *= 0.992;
+          }
+        }
+
+        [vx, nvx] = [nvx, vx];
+        [vy, nvy] = [nvy, vy];
+        [r, nr] = [nr, r];
+        [g, ng] = [ng, g];
+        [b, nb] = [nb, b];
+      }
+
+      function draw() {
+        const px = image.data;
+        for (let i = 0; i < N; i += 1) {
+          const p = i * 4;
+          const rr = clamp(r[i], 0, 1.6);
+          const gg = clamp(g[i], 0, 1.6);
+          const bb = clamp(b[i], 0, 1.6);
+
+          const speed = Math.hypot(vx[i], vy[i]) * 28;
+          const baseR = 8 + speed * 14;
+          const baseG = 12 + speed * 18;
+          const baseB = 20 + speed * 30;
+
+          px[p] = clamp(baseR + rr * 145, 0, 255);
+          px[p + 1] = clamp(baseG + gg * 145, 0, 255);
+          px[p + 2] = clamp(baseB + bb * 150, 0, 255);
+          px[p + 3] = 255;
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      function toGrid(clientX, clientY) {
+        pointer.x = clamp((clientX / width) * W, 1, W - 2);
+        pointer.y = clamp((clientY / height) * H, 1, H - 2);
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, (now - last) * 0.001);
+        last = now;
+        time += dt;
+
+        if (pointer.down) {
+          const dx = pointer.x - pointer.px;
+          const dy = pointer.y - pointer.py;
+          inject(pointer.x, pointer.y, 1.2);
+
+          const ix = clamp(Math.floor(pointer.x), 1, W - 2);
+          const iy = clamp(Math.floor(pointer.y), 1, H - 2);
+          const i = idx(ix, iy);
+          vx[i] += dx * 0.9;
+          vy[i] += dy * 0.9;
+        }
+
+        pointer.px = pointer.x;
+        pointer.py = pointer.y;
+
+        step(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('resize', resize);
+      addEventListener('mousemove', (event) => {
+        toGrid(event.clientX, event.clientY);
+      });
+      addEventListener('mousedown', (event) => {
+        pointer.down = true;
+        toGrid(event.clientX, event.clientY);
+        inject(pointer.x, pointer.y, 1.6);
+      });
+      addEventListener('mouseup', () => {
+        pointer.down = false;
+      });
+      addEventListener('touchstart', (event) => {
+        pointer.down = true;
+        const t = event.touches[0];
+        toGrid(t.clientX, t.clientY);
+        inject(pointer.x, pointer.y, 1.6);
+      }, { passive: true });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        toGrid(t.clientX, t.clientY);
+      }, { passive: true });
+      addEventListener('touchend', () => {
+        pointer.down = false;
+      });
+
+      addEventListener('click', () => {
+        burst = Math.min(1.5, burst + 0.7);
+        inject(pointer.x, pointer.y, 2.2);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'c') palette = (palette + 1) % 4;
+        if (k === 'w') windMode = (windMode + 1) % 3;
+        if (k === 'r') reset();
+      });
+
+      resize();
+      reset();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

@@ -697,6 +697,66 @@ const demos = [
     controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
     file: "demos/volumetric-cloud-chamber-3d.html",
   },
+  {
+    id: "electric-arc-tesla-field",
+    title: "Electric Arc Tesla Field",
+    stack: "Canvas Arc Simulation",
+    level: "Advanced",
+    description:
+      "Branching high-voltage arc network with charged nodes, recursive bolts, and glow-heavy electrical bloom.",
+    interaction: "Move pointer to bend arcs, click overload burst, C cycles palette, R reseeds, and A toggles autopilot.",
+    tags: ["2D", "lightning", "particles", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette (C)",
+    file: "demos/electric-arc-tesla-field.html",
+  },
+  {
+    id: "fluid-ink-vortex",
+    title: "Fluid Ink Vortex",
+    stack: "Grid Advection",
+    level: "Advanced",
+    description:
+      "Fluid-style dye and velocity advection with vortex forcing, pointer injection, and cinematic pigment drift.",
+    interaction: "Drag to inject ink, click impulse burst, C cycles palette, W changes wind mode, and R resets.",
+    tags: ["2D", "fluid", "ink", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wind Mode (W)",
+    file: "demos/fluid-ink-vortex.html",
+  },
+  {
+    id: "pyroclastic-cloud-lab",
+    title: "Pyroclastic Cloud Lab",
+    stack: "Volcanic Particle Simulation",
+    level: "Advanced",
+    description:
+      "Volcanic eruption plume with ash clouds, ember trails, buoyant lift, and wind-sheared pyroclastic drift.",
+    interaction: "Move pointer to shift vent, click eruption burst, W changes wind, E adds extra burst, and R resets.",
+    tags: ["2D", "fire", "smoke", "simulation"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wind Mode (W)",
+    file: "demos/pyroclastic-cloud-lab.html",
+  },
+  {
+    id: "crystalline-orbit-assembly-3d",
+    title: "Crystalline Orbit Assembly 3D",
+    stack: "Three.js Procedural Model",
+    level: "Advanced",
+    description:
+      "Procedural crystal machine with emissive orbit rings, floating shards, animated sparks, and orbit inspection.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse, A toggles auto-spin, C changes palette, and R reseeds shards.",
+    tags: ["3D", "model", "crystal", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/crystalline-orbit-assembly-3d.html",
+  },
+  {
+    id: "polar-light-interference-shader",
+    title: "Polar Light Interference Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Polar-domain light interference shader with chromatic fringes, concentric pulse rings, and pointer steering.",
+    interaction: "Move pointer to steer center, click pulse ring, C cycles palette, S changes speed, and P pauses.",
+    tags: ["2D", "shader", "light", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
+    file: "demos/polar-light-interference-shader.html",
+  },
 ];
 
 const state = {

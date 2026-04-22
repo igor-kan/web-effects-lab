@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hurricane Eye Simulation</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #06101a;
+        color: #ecf5ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(8, 15, 24, 0.6);
+        border: 1px solid rgba(164, 208, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.35; }
+      .home { color: #8fd1ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Hurricane Eye Simulation</h1>
+      <p>Cyclonic weather field with rotating rain bands, eye-wall turbulence, and gust pulses.</p>
+      <p>Move pointer to shift storm eye, click gust burst, <strong>W</strong> wind mode, <strong>D</strong> density, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d');
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let burst = 0;
+      let windMode = 1;
+      let denseMode = false;
+      let paused = false;
+
+      const pointer = { x: width * 0.5, y: height * 0.5, tx: width * 0.5, ty: height * 0.5 };
+
+      let particles = [];
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function resetParticles() {
+        particles = [];
+        const count = denseMode ? 3800 : 2400;
+        for (let i = 0; i < count; i += 1) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: Math.random(),
+          });
+        }
+      }
+
+      function wind() {
+        if (windMode === 0) return -24;
+        if (windMode === 1) return 0;
+        return 24;
+      }
+
+      function field(x, y) {
+        const cx = pointer.x;
+        const cy = pointer.y;
+
+        const dx = x - cx;
+        const dy = y - cy;
+        const d = Math.hypot(dx, dy) + 1;
+
+        const nx = dx / d;
+        const ny = dy / d;
+
+        const tangential = 3800 / (d + 40);
+        const inward = -220 / (d + 40) + Math.sin(d * 0.03 - time * 2.5) * 18;
+
+        let fx = -ny * tangential + nx * inward;
+        let fy = nx * tangential + ny * inward;
+
+        const band = Math.sin(d * 0.08 - time * 4 + Math.atan2(dy, dx) * 5);
+        fx += nx * band * 14;
+        fy += ny * band * 14;
+
+        fx += wind() * 0.5;
+
+        const eye = Math.exp(-d * 0.02);
+        fx *= 1 - eye * 0.75;
+        fy *= 1 - eye * 0.75;
+
+        return { fx, fy, d };
+      }
+
+      function drawBackground() {
+        const bg = ctx.createRadialGradient(pointer.x, pointer.y, 20, width * 0.5, height * 0.5, Math.max(width, height) * 0.9);
+        bg.addColorStop(0, '#172c41');
+        bg.addColorStop(0.35, '#0f2236');
+        bg.addColorStop(1, '#070f1a');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+
+        const eyeRadius = 42 + burst * 25;
+        const eye = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, eyeRadius);
+        eye.addColorStop(0, 'rgba(190,230,255,0.42)');
+        eye.addColorStop(1, 'rgba(190,230,255,0)');
+        ctx.fillStyle = eye;
+        ctx.fillRect(pointer.x - eyeRadius, pointer.y - eyeRadius, eyeRadius * 2, eyeRadius * 2);
+      }
+
+      function update(dt) {
+        pointer.x += (pointer.tx - pointer.x) * 0.06;
+        pointer.y += (pointer.ty - pointer.y) * 0.06;
+
+        burst = Math.max(0, burst - dt * 0.9);
+
+        for (const p of particles) {
+          const f = field(p.x, p.y);
+
+          p.vx += f.fx * dt * 0.08;
+          p.vy += f.fy * dt * 0.08;
+
+          p.vx *= 0.985;
+          p.vy *= 0.985;
+
+          p.x += p.vx * dt * 60;
+          p.y += p.vy * dt * 60;
+
+          p.life += dt * 0.2;
+
+          if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20 || p.life > 1.5) {
+            p.x = Math.random() * width;
+            p.y = Math.random() * height;
+            p.vx = (Math.random() - 0.5) * 7;
+            p.vy = (Math.random() - 0.5) * 7;
+            p.life = Math.random() * 0.4;
+          }
+        }
+      }
+
+      function draw() {
+        drawBackground();
+
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of particles) {
+          const f = field(p.x, p.y);
+          const rain = clamp(1 - f.d / (Math.min(width, height) * 0.5), 0, 1);
+          const alpha = 0.06 + rain * 0.35 + burst * 0.12;
+          const len = 4 + rain * 11;
+
+          ctx.strokeStyle = `rgba(${140 + rain * 80}, ${180 + rain * 60}, 255, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - p.vx * 0.35, p.y - p.vy * 0.35 - len);
+          ctx.stroke();
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, (now - last) * 0.001);
+        last = now;
+
+        if (!paused) {
+          time += dt;
+          update(dt);
+        }
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('resize', () => {
+        resize();
+        resetParticles();
+      });
+
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX;
+        pointer.ty = event.clientY;
+      });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX;
+        pointer.ty = t.clientY;
+      }, { passive: true });
+
+      addEventListener('click', () => {
+        burst = Math.min(1.8, burst + 0.9);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'w') windMode = (windMode + 1) % 3;
+        if (k === 'd') {
+          denseMode = !denseMode;
+          resetParticles();
+        }
+        if (k === 'r') resetParticles();
+        if (k === 'p') paused = !paused;
+      });
+
+      resize();
+      resetParticles();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

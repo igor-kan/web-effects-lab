@@ -757,6 +757,66 @@ const demos = [
     controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
     file: "demos/polar-light-interference-shader.html",
   },
+  {
+    id: "quantum-foam-raymarch",
+    title: "Quantum Foam Raymarch",
+    stack: "WebGL Raymarching",
+    level: "Advanced",
+    description:
+      "Domain-warped signed-distance foam field with bubble shells, plasma edge highlights, and volumetric fog.",
+    interaction: "Move pointer to steer, click pulse burst, Q cycles speed, and Space pauses travel.",
+    tags: ["3D", "shader", "raymarch", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (Q)",
+    file: "demos/quantum-foam-raymarch.html",
+  },
+  {
+    id: "hurricane-eye-simulation",
+    title: "Hurricane Eye Simulation",
+    stack: "Particle Weather Simulation",
+    level: "Advanced",
+    description:
+      "Cyclonic storm field with rotating rain bands, eye-wall dynamics, gust turbulence, and live storm-eye steering.",
+    interaction: "Move pointer to shift storm eye, click gust burst, W wind mode, D density mode, and R resets.",
+    tags: ["2D", "weather", "simulation", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Density Toggle (D)",
+    file: "demos/hurricane-eye-simulation.html",
+  },
+  {
+    id: "caustic-laser-pool",
+    title: "Caustic Laser Pool",
+    stack: "Interference Light Field",
+    level: "Advanced",
+    description:
+      "Liquid caustic interference effect with refractive ripples and animated crossing laser planes.",
+    interaction: "Move pointer to steer refraction center, click pulse ripple, C cycles palette, L toggles lasers, and P pauses.",
+    tags: ["2D", "light", "caustics", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Laser Toggle (L)",
+    file: "demos/caustic-laser-pool.html",
+  },
+  {
+    id: "mech-firefly-swarm-3d",
+    title: "Mech Firefly Swarm 3D",
+    stack: "Three.js Flocking Scene",
+    level: "Advanced",
+    description:
+      "Mechanical core and orbit rails surrounded by glowing fireflies with flock-style steering and burst reactions.",
+    interaction: "Drag to orbit, wheel to zoom, click burst, A toggles auto-spin, C changes palette, and R reseeds swarm.",
+    tags: ["3D", "particles", "model", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/mech-firefly-swarm-3d.html",
+  },
+  {
+    id: "fractal-flame-attractor",
+    title: "Fractal Flame Attractor",
+    stack: "Chaotic Attractor Particles",
+    level: "Advanced",
+    description:
+      "Lorenz-style chaotic attractor rendered as flame trails with heat-mapped color and pointer-warped dynamics.",
+    interaction: "Move pointer to warp attractor, click heat burst, C cycles palette, S changes speed, and R resets.",
+    tags: ["2D", "fire", "fractal", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
+    file: "demos/fractal-flame-attractor.html",
+  },
 ];
 
 const state = {

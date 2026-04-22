@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caustic Laser Pool</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #05121a;
+        color: #ecf7ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(7, 16, 25, 0.62);
+        border: 1px solid rgba(164, 216, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.35; }
+      .home { color: #93d7ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Caustic Laser Pool</h1>
+      <p>Interference caustics with refractive ripples and animated laser planes crossing liquid depth.</p>
+      <p>Move pointer to steer refraction center, click pulse ripple, <strong>C</strong> palette, <strong>L</strong> lasers, <strong>P</strong> pause.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const W = 300;
+      const H = 180;
+      const low = document.createElement('canvas');
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext('2d', { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let pulse = 0;
+      let paused = false;
+      let palette = 0;
+      let lasersOn = true;
+
+      const pointer = { x: 0.5, y: 0.5, tx: 0.5, ty: 0.5 };
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function paletteMix(v, cA, cB, cC) {
+        return [
+          cA[0] * (1 - v) + cB[0] * v + cC[0] * pulse,
+          cA[1] * (1 - v) + cB[1] * v + cC[1] * pulse,
+          cA[2] * (1 - v) + cB[2] * v + cC[2] * pulse,
+        ];
+      }
+
+      function colors(v) {
+        if (palette === 0) return paletteMix(v, [10, 24, 34], [58, 210, 255], [130, 40, 90]);
+        if (palette === 1) return paletteMix(v, [20, 20, 18], [255, 188, 70], [120, 30, 20]);
+        if (palette === 2) return paletteMix(v, [9, 24, 19], [90, 255, 190], [40, 110, 50]);
+        return paletteMix(v, [20, 16, 28], [200, 140, 255], [90, 40, 120]);
+      }
+
+      function drawFrame() {
+        const px = image.data;
+
+        pointer.x += (pointer.tx - pointer.x) * 0.08;
+        pointer.y += (pointer.ty - pointer.y) * 0.08;
+
+        for (let y = 0; y < H; y += 1) {
+          for (let x = 0; x < W; x += 1) {
+            const i = (x + y * W) * 4;
+            const u = x / W;
+            const v = y / H;
+
+            const dx = u - pointer.x;
+            const dy = v - pointer.y;
+            const d = Math.hypot(dx, dy) + 0.0001;
+
+            const wave1 = Math.sin((u * 34 + time * 1.8) + Math.cos(v * 28 - time * 1.6) * 2.4);
+            const wave2 = Math.sin((u * 62 - time * 2.6) - Math.sin(v * 44 + time * 1.8) * 1.7);
+            const radial = Math.sin(d * 110 - time * 6.2 + pulse * 6.5);
+
+            let caustic = wave1 * 0.45 + wave2 * 0.4 + radial * 0.35;
+            caustic = 0.5 + 0.5 * caustic;
+            caustic = Math.pow(caustic, 2.3);
+
+            const ref = Math.exp(-d * 7.5) * (0.4 + pulse * 0.6);
+            caustic += ref * 0.55;
+
+            let laser = 0;
+            if (lasersOn) {
+              const l1 = Math.exp(-Math.abs(v - (0.28 + Math.sin(time * 0.7 + u * 3) * 0.07)) * 78);
+              const l2 = Math.exp(-Math.abs(v - (0.62 + Math.sin(time * 0.5 - u * 2.2) * 0.06)) * 86);
+              laser = (l1 + l2) * (0.35 + pulse * 0.25);
+            }
+
+            const [r, g, b] = colors(clamp(caustic + laser, 0, 1));
+            px[i] = clamp(r + laser * 75, 0, 255);
+            px[i + 1] = clamp(g + caustic * 35 + laser * 40, 0, 255);
+            px[i + 2] = clamp(b + caustic * 50, 0, 255);
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, (now - last) * 0.001);
+        last = now;
+
+        if (!paused) {
+          time += dt;
+          pulse = Math.max(0, pulse - dt * 0.9);
+        }
+
+        drawFrame();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('resize', resize);
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX / width;
+        pointer.ty = event.clientY / height;
+      });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX / width;
+        pointer.ty = t.clientY / height;
+      }, { passive: true });
+
+      addEventListener('click', () => {
+        pulse = Math.min(1.8, pulse + 0.95);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'c') palette = (palette + 1) % 4;
+        if (k === 'l') lasersOn = !lasersOn;
+        if (k === 'p') paused = !paused;
+      });
+
+      resize();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mech Firefly Swarm 3D</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #070b14;
+        color: #eef6ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      #stage {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+        max-width: 560px;
+        background: rgba(8, 14, 26, 0.62);
+        border: 1px solid rgba(166, 214, 255, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.35; }
+      .home { color: #90d4ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Mech Firefly Swarm 3D</h1>
+      <p>Mechanical core with orbit rails and a glowing firefly swarm using flock-style steering.</p>
+      <p>Drag to orbit, wheel to zoom, click burst, <strong>A</strong> auto-spin, <strong>C</strong> palette, <strong>R</strong> reseed swarm.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://unpkg.com/three@0.164.1/build/three.module.js";
+
+      const canvas = document.getElementById('stage');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.18;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x070d16);
+      scene.fog = new THREE.Fog(0x070d16, 8, 34);
+
+      const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 120);
+
+      const orbit = {
+        target: new THREE.Vector3(0, 0.8, 0),
+        theta: 0.95,
+        phi: 1.06,
+        radius: 10.5,
+        dragging: false,
+        px: 0,
+        py: 0,
+      };
+
+      function updateCamera() {
+        orbit.radius = Math.max(4.5, Math.min(20, orbit.radius));
+        orbit.phi = Math.max(0.25, Math.min(Math.PI - 0.2, orbit.phi));
+
+        const sinPhi = Math.sin(orbit.phi);
+        camera.position.set(
+          orbit.target.x + orbit.radius * sinPhi * Math.sin(orbit.theta),
+          orbit.target.y + orbit.radius * Math.cos(orbit.phi),
+          orbit.target.z + orbit.radius * sinPhi * Math.cos(orbit.theta)
+        );
+        camera.lookAt(orbit.target);
+      }
+
+      const hemi = new THREE.HemisphereLight(0x8bd0ff, 0x0a1320, 0.72);
+      scene.add(hemi);
+
+      const key = new THREE.PointLight(0x69cbff, 10, 34, 2);
+      key.position.set(4.2, 3.4, 2.8);
+      scene.add(key);
+
+      const fill = new THREE.PointLight(0x91ffd5, 6, 34, 2);
+      fill.position.set(-4.2, 1.3, -3.5);
+      scene.add(fill);
+
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(10, 80),
+        new THREE.MeshStandardMaterial({ color: 0x111f33, roughness: 0.86, metalness: 0.1 })
+      );
+      floor.rotation.x = -Math.PI * 0.5;
+      floor.position.y = -1.2;
+      scene.add(floor);
+
+      const mech = new THREE.Group();
+      scene.add(mech);
+
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.9, 1.2, 2.2, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0x1e4568,
+          roughness: 0.25,
+          metalness: 0.76,
+          emissive: 0x1a67a8,
+          emissiveIntensity: 0.65,
+        })
+      );
+      body.position.y = 0.8;
+      mech.add(body);
+
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 24, 24),
+        new THREE.MeshStandardMaterial({
+          color: 0x79dbff,
+          emissive: 0x2dadff,
+          emissiveIntensity: 1.1,
+          roughness: 0.15,
+          metalness: 0.35,
+        })
+      );
+      core.position.y = 1;
+      mech.add(core);
+
+      const rails = [];
+      for (let i = 0; i < 3; i += 1) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(1.8 + i * 0.4, 0.07, 20, 180),
+          new THREE.MeshStandardMaterial({
+            color: 0x76d7ff,
+            emissive: 0x2f9dff,
+            emissiveIntensity: 0.9,
+            roughness: 0.2,
+            metalness: 0.85,
+          })
+        );
+        ring.position.y = 0.95;
+        ring.rotation.set(Math.PI * (0.24 + i * 0.26), Math.PI * (0.08 + i * 0.16), Math.PI * i * 0.2);
+        mech.add(ring);
+        rails.push(ring);
+      }
+
+      const fireflyCount = 160;
+      const fireflies = [];
+      const fireflyGeo = new THREE.SphereGeometry(0.05, 10, 10);
+
+      function reseedSwarm() {
+        for (const f of fireflies) scene.remove(f.mesh);
+        fireflies.length = 0;
+
+        for (let i = 0; i < fireflyCount; i += 1) {
+          const mesh = new THREE.Mesh(
+            fireflyGeo,
+            new THREE.MeshBasicMaterial({ color: 0xbde9ff, transparent: true, opacity: 0.9 })
+          );
+
+          mesh.position.set((Math.random() - 0.5) * 8, Math.random() * 4 - 1, (Math.random() - 0.5) * 8);
+          scene.add(mesh);
+
+          fireflies.push({
+            mesh,
+            vx: (Math.random() - 0.5) * 0.04,
+            vy: (Math.random() - 0.5) * 0.04,
+            vz: (Math.random() - 0.5) * 0.04,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      reseedSwarm();
+
+      let autoSpin = true;
+      let palette = 0;
+      let burst = 0;
+
+      function applyPalette() {
+        if (palette === 0) {
+          core.material.color.set(0x79dbff);
+          core.material.emissive.set(0x2dadff);
+          for (const r of rails) {
+            r.material.color.set(0x76d7ff);
+            r.material.emissive.set(0x2f9dff);
+          }
+        } else if (palette === 1) {
+          core.material.color.set(0xffcf7b);
+          core.material.emissive.set(0xff8e2b);
+          for (const r of rails) {
+            r.material.color.set(0xffc17d);
+            r.material.emissive.set(0xff8a37);
+          }
+        } else {
+          core.material.color.set(0xd1a1ff);
+          core.material.emissive.set(0x8e63ff);
+          for (const r of rails) {
+            r.material.color.set(0xc8adff);
+            r.material.emissive.set(0x726bff);
+          }
+        }
+      }
+
+      function onPointerDown(x, y) {
+        orbit.dragging = true;
+        orbit.px = x;
+        orbit.py = y;
+      }
+
+      function onPointerMove(x, y) {
+        if (!orbit.dragging) return;
+        const dx = x - orbit.px;
+        const dy = y - orbit.py;
+        orbit.px = x;
+        orbit.py = y;
+        orbit.theta -= dx * 0.005;
+        orbit.phi += dy * 0.0042;
+      }
+
+      addEventListener('mousedown', (event) => onPointerDown(event.clientX, event.clientY));
+      addEventListener('mousemove', (event) => onPointerMove(event.clientX, event.clientY));
+      addEventListener('mouseup', () => {
+        orbit.dragging = false;
+      });
+      addEventListener('touchstart', (event) => {
+        const t = event.touches[0];
+        onPointerDown(t.clientX, t.clientY);
+      }, { passive: true });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        onPointerMove(t.clientX, t.clientY);
+      }, { passive: true });
+      addEventListener('touchend', () => {
+        orbit.dragging = false;
+      });
+
+      addEventListener('wheel', (event) => {
+        orbit.radius += event.deltaY * 0.01;
+      });
+
+      addEventListener('click', () => {
+        burst = Math.min(1.8, burst + 1.0);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'a') autoSpin = !autoSpin;
+        if (k === 'c') {
+          palette = (palette + 1) % 3;
+          applyPalette();
+        }
+        if (k === 'r') reseedSwarm();
+      });
+
+      addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      const clock = new THREE.Clock();
+      applyPalette();
+
+      function render() {
+        const t = clock.getElapsedTime();
+
+        if (autoSpin && !orbit.dragging) orbit.theta += 0.0015;
+        updateCamera();
+
+        burst = Math.max(0, burst - 0.02);
+
+        mech.rotation.y += 0.003;
+        mech.rotation.x = Math.sin(t * 0.6) * 0.08;
+
+        core.material.emissiveIntensity = 1 + burst * 1.6;
+        body.material.emissiveIntensity = 0.65 + burst * 0.4;
+
+        rails.forEach((r, i) => {
+          r.rotation.x += 0.002 + i * 0.001;
+          r.rotation.y += 0.0024 + i * 0.0013;
+          r.material.emissiveIntensity = 0.8 + burst * 1.2 + Math.sin(t * 2 + i) * 0.15;
+        });
+
+        key.position.set(Math.cos(t * 0.8) * 4.5, 2.7 + Math.sin(t * 0.9), Math.sin(t * 0.8) * 4.5);
+        fill.position.set(Math.cos(-t * 0.55) * 4.2, 1.1 + Math.cos(t * 1.1), Math.sin(-t * 0.55) * 4.2);
+
+        const center = new THREE.Vector3(0, 1.0, 0);
+
+        for (const f of fireflies) {
+          const p = f.mesh.position;
+
+          let cx = center.x - p.x;
+          let cy = center.y - p.y;
+          let cz = center.z - p.z;
+          const dist = Math.hypot(cx, cy, cz) + 0.001;
+          cx /= dist;
+          cy /= dist;
+          cz /= dist;
+
+          const swirlX = -cz;
+          const swirlY = 0;
+          const swirlZ = cx;
+
+          f.vx += cx * 0.0008 + swirlX * 0.0012;
+          f.vy += cy * 0.0005 + Math.sin(t * 2 + f.phase) * 0.0006;
+          f.vz += cz * 0.0008 + swirlZ * 0.0012;
+
+          if (burst > 0.01) {
+            f.vx += (Math.random() - 0.5) * 0.004 * burst;
+            f.vy += (Math.random() - 0.5) * 0.004 * burst;
+            f.vz += (Math.random() - 0.5) * 0.004 * burst;
+          }
+
+          f.vx *= 0.985;
+          f.vy *= 0.985;
+          f.vz *= 0.985;
+
+          p.x += f.vx;
+          p.y += f.vy;
+          p.z += f.vz;
+
+          if (p.length() > 7.8) {
+            p.normalize().multiplyScalar(7.8);
+            f.vx *= -0.5;
+            f.vy *= -0.5;
+            f.vz *= -0.5;
+          }
+
+          const pulse = 0.55 + Math.sin(t * 6 + f.phase) * 0.35 + burst * 0.2;
+          f.mesh.material.opacity = pulse;
+          f.mesh.scale.setScalar(0.8 + pulse * 0.6);
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(render);
+      }
+
+      render();
+    </script>
+  </body>
+</html>

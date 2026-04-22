@@ -937,6 +937,66 @@ const demos = [
     controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
     file: "demos/holographic-wave-labyrinth.html",
   },
+  {
+    id: "gpu-smoke-vorticity-lab",
+    title: "GPU Smoke Vorticity Lab",
+    stack: "Grid Fluid Solver",
+    level: "Advanced",
+    description:
+      "Realtime smoke simulation with advection, vorticity confinement, buoyancy lift, and pointer-injected velocity.",
+    interaction: "Drag to inject smoke, click burst, C cycles palette, V changes vorticity mode, and R resets.",
+    tags: ["2D", "smoke", "fluid", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Vorticity Mode (V)",
+    file: "demos/gpu-smoke-vorticity-lab.html",
+  },
+  {
+    id: "fire-whorl-jet-sim",
+    title: "Fire Whorl Jet Sim",
+    stack: "Turbulent Particle Fire",
+    level: "Advanced",
+    description:
+      "Turbulent flame jet effect with ember streaks, smoke lofting, and rotating whorl dynamics.",
+    interaction: "Move pointer to steer nozzle, click burst, W changes wind mode, C cycles palette, and R resets.",
+    tags: ["2D", "fire", "smoke", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wind Mode (W)",
+    file: "demos/fire-whorl-jet-sim.html",
+  },
+  {
+    id: "caustic-water-volume-shader",
+    title: "Caustic Water Volume Shader",
+    stack: "WebGL Water Shader",
+    level: "Advanced",
+    description:
+      "Volumetric underwater caustic shader with refractive wave interference, pulse rings, and depth-based fog.",
+    interaction: "Move pointer to steer refraction center, click pulse ripple, C cycles palette, S changes speed, and P pauses.",
+    tags: ["2D", "water", "caustics", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
+    file: "demos/caustic-water-volume-shader.html",
+  },
+  {
+    id: "ember-vortex-veil",
+    title: "Ember Vortex Veil",
+    stack: "Particle Ember Field",
+    level: "Advanced",
+    description:
+      "Swirling ember veil with layered smoke haze, turbulence advection, and cinematic glow trails.",
+    interaction: "Move pointer to steer vortex, click ember burst, G changes glow mode, W changes wind mode, and R resets.",
+    tags: ["2D", "fire", "embers", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Glow Mode (G)",
+    file: "demos/ember-vortex-veil.html",
+  },
+  {
+    id: "quantum-prism-reactor-3d",
+    title: "Quantum Prism Reactor 3D",
+    stack: "Three.js Procedural Reactor",
+    level: "Advanced",
+    description:
+      "Procedural prism reactor with orbiting energy rails, chromatic beam lighting, and pulse-reactive shards.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse burst, C cycles palette, A toggles auto-spin, and R reseeds shards.",
+    tags: ["3D", "model", "energy", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/quantum-prism-reactor-3d.html",
+  },
 ];
 
 const state = {

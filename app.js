@@ -877,6 +877,66 @@ const demos = [
     controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
     file: "demos/reactive-crystal-lattice-3d.html",
   },
+  {
+    id: "raymarched-fractal-cathedral",
+    title: "Raymarched Fractal Cathedral",
+    stack: "WebGL Raymarching",
+    level: "Advanced",
+    description:
+      "Fractal-inspired cathedral flythrough with procedural arches, stained-glow ribbing, and atmospheric fog.",
+    interaction: "Move pointer to steer, click pulse bloom, Q cycles speed mode, and Space pauses travel.",
+    tags: ["3D", "shader", "raymarch", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (Q)",
+    file: "demos/raymarched-fractal-cathedral.html",
+  },
+  {
+    id: "supercell-lightning-radar",
+    title: "Supercell Lightning Radar",
+    stack: "Storm Field Simulation",
+    level: "Advanced",
+    description:
+      "Cyclonic weather radar effect with rain-band advection, storm-cell dynamics, and branching lightning strikes.",
+    interaction: "Move pointer to steer storm center, click strike burst, C cycles palette, G changes gust mode, and R resets.",
+    tags: ["2D", "weather", "lightning", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Gust Mode (G)",
+    file: "demos/supercell-lightning-radar.html",
+  },
+  {
+    id: "liquid-chrome-metaballs",
+    title: "Liquid Chrome Metaballs",
+    stack: "Metaball Field Shading",
+    level: "Advanced",
+    description:
+      "Reflective chrome metaball fluid with animated flow, edge highlights, and pointer-driven liquid attraction.",
+    interaction: "Move pointer to pull liquid, click inject droplet, C cycles palette, D toggles density, and R resets.",
+    tags: ["2D", "metaball", "liquid", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Density Toggle (D)",
+    file: "demos/liquid-chrome-metaballs.html",
+  },
+  {
+    id: "ion-storm-particles-3d",
+    title: "Ion Storm Particles 3D",
+    stack: "Three.js Particle Storm",
+    level: "Advanced",
+    description:
+      "Volumetric ion storm scene with charged particle swarms, electric ring filaments, and orbital camera control.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse burst, C changes palette, A toggles auto-spin, and R reseeds.",
+    tags: ["3D", "particles", "storm", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/ion-storm-particles-3d.html",
+  },
+  {
+    id: "holographic-wave-labyrinth",
+    title: "Holographic Wave Labyrinth",
+    stack: "WebGL Interference Shader",
+    level: "Advanced",
+    description:
+      "Holographic line labyrinth shader with wave distortion, scanline drift, and chromatic contour pulses.",
+    interaction: "Move pointer to warp center, click pulse bloom, C cycles palette, S changes speed, and P pauses.",
+    tags: ["2D", "shader", "holographic", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
+    file: "demos/holographic-wave-labyrinth.html",
+  },
 ];
 
 const state = {

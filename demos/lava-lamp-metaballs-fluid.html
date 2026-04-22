@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lava Lamp Metaballs Fluid</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #140b17;
+        color: #fff1ff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      canvas {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        image-rendering: pixelated;
+      }
+      .hud {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: 8;
+        max-width: 560px;
+        background: rgba(33, 15, 39, 0.58);
+        border: 1px solid rgba(255, 181, 245, 0.3);
+        border-radius: 11px;
+        padding: 10px 12px;
+        backdrop-filter: blur(8px);
+      }
+      .hud h1 { margin: 0; font-size: 1rem; }
+      .hud p { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.35; }
+      .home { color: #ffb3ff; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="hud">
+      <h1>Lava Lamp Metaballs Fluid</h1>
+      <p>Metaball iso-surface fluid with buoyant blobs, glossy shading, and swirling convection.</p>
+      <p>Move pointer to stir flow, click to inject blobs, <strong>C</strong> palette, <strong>D</strong> density, <strong>R</strong> reset.</p>
+      <p><a class="home" href="../index.html">Back to gallery</a></p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('stage');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const W = 260;
+      const H = 160;
+      const low = document.createElement('canvas');
+      low.width = W;
+      low.height = H;
+      const lowCtx = low.getContext('2d', { alpha: false });
+      const image = lowCtx.createImageData(W, H);
+
+      let width = innerWidth;
+      let height = innerHeight;
+      let time = 0;
+      let palette = 0;
+      let dense = false;
+
+      const pointer = { x: 0.5, y: 0.55, tx: 0.5, ty: 0.55 };
+      let blobs = [];
+
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+      }
+
+      function resize() {
+        width = innerWidth;
+        height = innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      function resetBlobs() {
+        blobs = [];
+        const count = dense ? 18 : 12;
+        for (let i = 0; i < count; i += 1) {
+          blobs.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: (Math.random() - 0.5) * 0.4,
+            r: 12 + Math.random() * 24,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      function spawnBlob(x, y) {
+        blobs.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 0.6,
+          vy: -0.8 - Math.random() * 0.7,
+          r: 10 + Math.random() * 20,
+          phase: Math.random() * Math.PI * 2,
+        });
+        if (blobs.length > (dense ? 28 : 20)) blobs.shift();
+      }
+
+      function paletteColor(t, edge) {
+        if (palette === 0) {
+          return [55 + t * 200 + edge * 45, 18 + t * 110, 90 + t * 210];
+        }
+        if (palette === 1) {
+          return [255 * t, 130 + t * 100 + edge * 35, 50 + t * 80];
+        }
+        if (palette === 2) {
+          return [60 + t * 80, 220 * t + edge * 40, 160 + t * 85];
+        }
+        return [180 + t * 70 + edge * 50, 80 + t * 60, 255 * t + edge * 35];
+      }
+
+      function fieldAt(x, y) {
+        let f = 0;
+        for (const b of blobs) {
+          const dx = x - b.x;
+          const dy = y - b.y;
+          f += (b.r * b.r) / (dx * dx + dy * dy + 1);
+        }
+        return f;
+      }
+
+      function update(dt) {
+        pointer.x += (pointer.tx - pointer.x) * 0.07;
+        pointer.y += (pointer.ty - pointer.y) * 0.07;
+
+        for (const b of blobs) {
+          const convect = Math.sin(time * 1.4 + b.phase + b.x * 0.03) * 0.18;
+          b.vx += convect * dt * 35;
+          b.vy += (-0.4 + Math.sin(time * 1.8 + b.phase) * 0.18) * dt * 25;
+
+          const dx = pointer.x * W - b.x;
+          const dy = pointer.y * H - b.y;
+          const d = Math.hypot(dx, dy) + 1;
+          b.vx += (dx / d) * 0.02;
+          b.vy += (dy / d) * 0.02;
+
+          b.vx *= 0.992;
+          b.vy *= 0.992;
+
+          b.x += b.vx * dt * 60;
+          b.y += b.vy * dt * 60;
+
+          if (b.x < -30) b.x = W + 30;
+          if (b.x > W + 30) b.x = -30;
+          if (b.y < -45) b.y = H + 45;
+          if (b.y > H + 45) b.y = -45;
+        }
+      }
+
+      function draw() {
+        const px = image.data;
+
+        for (let y = 0; y < H; y += 1) {
+          for (let x = 0; x < W; x += 1) {
+            const i = (x + y * W) * 4;
+
+            const f = fieldAt(x, y);
+            const edge = clamp((f - 1.2) * 1.5, 0, 1);
+            const body = clamp((f - 0.95) * 1.0, 0, 1);
+            const highlight = clamp((fieldAt(x + 1.5, y - 1.5) - f) * 1.8 + 0.4, 0, 1);
+
+            const [r, g, b] = paletteColor(body, edge * highlight);
+
+            const bg = 16 + Math.sin(y * 0.07 + time * 0.8) * 6;
+            px[i] = clamp(bg + r * body + edge * 40, 0, 255);
+            px[i + 1] = clamp(bg * 0.7 + g * body + edge * 20, 0, 255);
+            px[i + 2] = clamp(bg * 1.1 + b * body + edge * 35, 0, 255);
+            px[i + 3] = 255;
+          }
+        }
+
+        lowCtx.putImageData(image, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(low, 0, 0, width, height);
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, (now - last) * 0.001);
+        last = now;
+        time += dt;
+
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      addEventListener('resize', resize);
+      addEventListener('mousemove', (event) => {
+        pointer.tx = event.clientX / width;
+        pointer.ty = event.clientY / height;
+      });
+      addEventListener('touchmove', (event) => {
+        const t = event.touches[0];
+        pointer.tx = t.clientX / width;
+        pointer.ty = t.clientY / height;
+      }, { passive: true });
+
+      addEventListener('click', (event) => {
+        const x = (event.clientX / width) * W;
+        const y = (event.clientY / height) * H;
+        spawnBlob(x, y);
+      });
+
+      addEventListener('keydown', (event) => {
+        const k = event.key.toLowerCase();
+        if (k === 'c') palette = (palette + 1) % 4;
+        if (k === 'd') {
+          dense = !dense;
+          resetBlobs();
+        }
+        if (k === 'r') resetBlobs();
+      });
+
+      resize();
+      resetBlobs();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>

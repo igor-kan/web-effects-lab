@@ -817,6 +817,66 @@ const demos = [
     controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
     file: "demos/fractal-flame-attractor.html",
   },
+  {
+    id: "lava-lamp-metaballs-fluid",
+    title: "Lava Lamp Metaballs Fluid",
+    stack: "Metaball Scalar Field",
+    level: "Advanced",
+    description:
+      "Lava-lamp-style metaball fluid effect with buoyant blobs, glossy iso-surface shading, and convective motion.",
+    interaction: "Move pointer to stir flow, click to inject blobs, C cycles palette, D toggles density, and R resets.",
+    tags: ["2D", "fluid", "metaball", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Density Toggle (D)",
+    file: "demos/lava-lamp-metaballs-fluid.html",
+  },
+  {
+    id: "strobe-moire-interference-shader",
+    title: "Strobe Moire Interference Shader",
+    stack: "WebGL Shader",
+    level: "Advanced",
+    description:
+      "Layered radial and scanline grids producing animated moire interference patterns with strobe pulses.",
+    interaction: "Move pointer to offset layers, click pulse, C cycles palette, S changes speed, and P pauses.",
+    tags: ["2D", "shader", "interference", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Speed Mode (S)",
+    file: "demos/strobe-moire-interference-shader.html",
+  },
+  {
+    id: "plasma-tornado-column",
+    title: "Plasma Tornado Column",
+    stack: "Particle Vortex Simulation",
+    level: "Advanced",
+    description:
+      "Charged plasma tornado with rising particles, lightning streaks, vortex core glow, and wind-driven bend.",
+    interaction: "Move pointer to shift column, click overload burst, C cycles palette, W changes wind mode, and R resets.",
+    tags: ["2D", "particles", "plasma", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Wind Mode (W)",
+    file: "demos/plasma-tornado-column.html",
+  },
+  {
+    id: "magnetosphere-aurora-3d",
+    title: "Magnetosphere Aurora 3D",
+    stack: "Three.js Space Scene",
+    level: "Advanced",
+    description:
+      "Planetary magnetosphere scene with dynamic field lines, animated aurora curtains, and charged orbital particles.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse storm, C changes palette, A toggles auto-spin, and R reseeds.",
+    tags: ["3D", "space", "aurora", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/magnetosphere-aurora-3d.html",
+  },
+  {
+    id: "reactive-crystal-lattice-3d",
+    title: "Reactive Crystal Lattice 3D",
+    stack: "Three.js Procedural Lattice",
+    level: "Advanced",
+    description:
+      "Reactive crystal lattice network with emissive node pulses, energy edge waves, and continuous 3D motion.",
+    interaction: "Drag to orbit, wheel to zoom, click pulse, C cycles palette, A toggles auto-spin, and R reshuffles.",
+    tags: ["3D", "crystal", "model", "interactive"],
+    controls: "Brightness, Saturation, Contrast, Hue, Blur + Palette Cycle (C)",
+    file: "demos/reactive-crystal-lattice-3d.html",
+  },
 ];
 
 const state = {
